@@ -369,7 +369,7 @@ func main() {
 			wg.Done()
 		}()
 	}
-body
+
 	zat, err := NewConfigFromFile(logger, cmd.ZatConfigPath, googleClient, zoomClient)
 	if err != nil {
 		logger.Println("failed to load config", err)
