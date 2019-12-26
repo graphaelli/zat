@@ -37,6 +37,8 @@ func NewMux(zat *Config, params runParams) *http.ServeMux {
 
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte("<meta http-equiv=\"refresh\" content=\"10\"/>"))
+		w.Write([]byte("<head><style>table, table th,table tr, table td{border-collapse: collapse;border:1px solid #000000;padding:3px}</style></head><body>"))
+
 		w.Write([]byte("<br>Google: "))
 		if !googleClient.HasCreds() {
 			w.Write([]byte("<a href=\"/google\">login</a>"))
@@ -62,6 +64,17 @@ func NewMux(zat *Config, params runParams) *http.ServeMux {
 		} else {
 			w.Write([]byte("<br/>Login, to be able to archive"))	
 		}
+
+		if len(archDetails)>0 {
+			w.Write([]byte("<br/><br/><table><tr><th>Name</th><th>Date</th><th>Files</th><th>Status</th></th>"))
+			for i := 0; i < len(archDetails); i++ {
+				arch := archDetails[i]
+				w.Write([]byte(fmt.Sprintf("<tr><td><a href=\"%s\">%s</a></td><td>%s</td><td>%d</td><td><a href=\"%s\">%s</a></td></tr>",
+											arch.zoomUrl, arch.name,arch.date,arch.fileNumber,arch.googleDriveURL,arch.status)))
+			}
+			w.Write([]byte("</table>"))
+		}
+		w.Write([]byte("</body>"))
 	})
 
 	mux.HandleFunc("/archive", func(w http.ResponseWriter, r *http.Request) {
@@ -246,6 +259,14 @@ func mkdir(ctx context.Context, gdrive *drive.Service, parent *drive.File, folde
 }
 
 func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
+
+	var curArchMeeting = archivedMeeting{ name: meeting.Topic,
+											  fileNumber: 0,
+											  status: "archiving",
+											  date: meeting.StartTime.Format("2006-01-02 15:04"),
+											  zoomUrl: meeting.ShareURL}
+	archDetails = append(archDetails, &curArchMeeting)
+
 	// check what is already uploaded for this meeting
 	gdrive, err := z.googleClient.Service(context.TODO())
 	if err != nil {
@@ -254,16 +275,19 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 	// parent folder of all meetings
 	parentFolderName := z.copies[meeting.ID]
 	if parentFolderName == "" {
+		curArchMeeting.status = "error"
 		return fmt.Errorf("no mapping found for meeting %d", meeting.ID)
 	}
 	parent, err := gdrive.Files.Get(parentFolderName).SupportsAllDrives(true).Do()
 	if err != nil {
+		curArchMeeting.status = "error"
 		return fmt.Errorf("while finding parent of %q: %w", parentFolderName, err)
 	}
 
 	// parent folder for this meeting
 	meetingFolder, err, created := mkdir(context.TODO(), gdrive, parent, meetingFolderName(meeting))
 	if err != nil {
+		curArchMeeting.status = "error"
 		return fmt.Errorf("while finding/creating meeting folder: %w", err)
 	}
 	if created {
@@ -273,6 +297,8 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 		z.logger.Printf("using existing folder %s: https://drive.google.com/drive/folders/%s",
 			meetingFolder.Name, meetingFolder.Id)
 	}
+	
+	curArchMeeting.googleDriveURL = "https://drive.google.com/drive/folders/"+meetingFolder.Id
 
 	// list folder for this meeting
 	alreadyUploaded := make(map[string]struct{})
@@ -284,6 +310,7 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 		}
 		meetingFiles, err := call.Do()
 		if err != nil {
+			curArchMeeting.status = "error"
 			return fmt.Errorf("while listing meeting folder: %w", err)
 		}
 		for _, f := range meetingFiles.Files {
@@ -303,17 +330,20 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 		//check if meeting duration is shorter than minimum
 		start, err := time.Parse(time.RFC3339, f.RecordingStart)
 		if err != nil {
+			curArchMeeting.status = "error"
 			return fmt.Errorf("while parsing recording start %s - %s: %w", f.ID, f.RecordingStart, err)
 		}
 
 		end, err2 := time.Parse(time.RFC3339, f.RecordingEnd)
 		if err2 != nil {
+			curArchMeeting.status = "error"
 			return fmt.Errorf("while parsing recording end %s - %s: %w", f.ID, f.RecordingEnd, err)
 		}
 
 		if err == nil && err2 == nil {
 			duration := int(end.Sub(start).Minutes())
 			if duration < params.minDuration {
+				curArchMeeting.status = "skipped - length"
 				z.logger.Printf("skipped %d minute recording at %s - %s", duration, start, end)
 				continue
 			}
@@ -321,15 +351,19 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 	
 		name := recordingFileName(meeting, f)
 		if _, exists := alreadyUploaded[name]; exists {
+			curArchMeeting.status = "done"
+			curArchMeeting.fileNumber++
 			z.logger.Printf("skipping upload %s to %s/%s, already exists", name, parent.Name, meetingFolder.Name)
 			continue
 		}
 		z.logger.Printf("uploading %q to \"%s/%s\"", name, parent.Name, meetingFolder.Name)
 		r, err := http.Get(f.DownloadURL)
 		if err != nil {
+			curArchMeeting.status = "error"
 			return fmt.Errorf("while downloading recording %s: %w", f.DownloadURL, err)
 		}
 		if r.StatusCode != http.StatusOK {
+			curArchMeeting.status = "error"
 			return fmt.Errorf("download failed, got %d error: %#v", r.StatusCode, r)
 		}
 		_, err = gdrive.Files.Create(&drive.File{
@@ -337,10 +371,13 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 			Parents: []string{meetingFolder.Id},
 		}).Media(r.Body).SupportsAllDrives(true).Do()
 		if err != nil {
+			curArchMeeting.status = "error"
 			return fmt.Errorf("while uploading recording %s: %w", f.DownloadURL, err)
 		}
+		curArchMeeting.fileNumber++
 		z.logger.Printf("uploaded %q to %s/%s", name, parent.Name, meetingFolder.Name)
 	}
+	curArchMeeting.status = "done"
 	return nil
 }
 
@@ -351,6 +388,7 @@ type runParams struct {
 
 func (z *Config) Run(params runParams) error {
 	z.logger.Print("archiving recordings")
+	archDetails = []*archivedMeeting{}
 	nextPageToken := ""
 	for {
 		recordings, err := z.zoomClient.ListRecordings(time.Now().Add(-1*params.since), nextPageToken)
@@ -375,10 +413,19 @@ func (z *Config) Run(params runParams) error {
 	return nil
 }
 
+type archivedMeeting struct {
+	name string
+	fileNumber int
+	status string
+	date string
+	zoomUrl string
+	googleDriveURL string
+}
+
 var (
     archIsRunning   bool
     archIsRunningMu sync.Mutex
-
+    archDetails = []*archivedMeeting{}
 )
 
 func doRun(zat *Config, params runParams){
