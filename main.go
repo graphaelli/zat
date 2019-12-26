@@ -23,7 +23,11 @@ import (
 	"github.com/graphaelli/zat/zoom"
 )
 
-func NewMux(logger *log.Logger, googleClient *google.Client, zoomClient *zoom.Client) *http.ServeMux {
+func NewMux(zat *Config, params runParams) *http.ServeMux {
+	logger := zat.logger
+	googleClient := zat.googleClient
+	zoomClient := zat.zoomClient
+	
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -32,19 +36,42 @@ func NewMux(logger *log.Logger, googleClient *google.Client, zoomClient *zoom.Cl
 		}
 
 		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte("<meta http-equiv=\"refresh\" content=\"10\"/>"))
+		w.Write([]byte("<br>Google: "))
 		if !googleClient.HasCreds() {
-			logger.Print("no google credentials")
-			w.Write([]byte("<br><a href=\"/google\">google</a>"))
+			w.Write([]byte("<a href=\"/google\">login</a>"))
 			// googleClient.OauthRedirect(w, r)
 			//return
+		} else {
+			w.Write([]byte("<span style=\"color:green\">OK</span>"))
 		}
 
+		w.Write([]byte("<br>Zoom: "))
 		if !zoomClient.HasCreds() {
-			logger.Print("no zoom credentials")
-			w.Write([]byte("<br><a href=\"/zoom\">zoom</a>"))
+			w.Write([]byte("<a href=\"/zoom\">login</a>"))
 			//zoomClient.OauthRedirect(w, r)
 			//return
+		} else {
+			w.Write([]byte("<span style=\"color:green\">OK</span>"))
 		}
+
+		if archIsRunning {
+			w.Write([]byte("<br/>Archiving...</a>"))
+		} else if googleClient.HasCreds() && zoomClient.HasCreds() {
+			w.Write([]byte("<br/><a href=\"/archive\">Archive Now</a>"))
+		} else {
+			w.Write([]byte("<br/>Login, to be able to archive"))	
+		}
+	})
+
+	mux.HandleFunc("/archive", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/archive" {
+			http.NotFound(w, r)
+			return
+		}
+
+		doRun(zat, params)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
 
 	mux.HandleFunc("/google", func(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +102,7 @@ func NewMux(logger *log.Logger, googleClient *google.Client, zoomClient *zoom.Cl
 			logger.Print(err)
 		}
 	})
+
 	mux.HandleFunc("/zoom", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/zoom" {
 			http.NotFound(w, r)
@@ -217,7 +245,7 @@ func mkdir(ctx context.Context, gdrive *drive.Service, parent *drive.File, folde
 	}
 }
 
-func (z *Config) Archive(meeting zoom.Meeting) error {
+func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 	// check what is already uploaded for this meeting
 	gdrive, err := z.googleClient.Service(context.TODO())
 	if err != nil {
@@ -271,6 +299,26 @@ func (z *Config) Archive(meeting zoom.Meeting) error {
 	z.logger.Printf("archiving meeting %d to %s (https://drive.google.com/drive/folders/%s)",
 		meeting.ID, meetingFolder.Name, meetingFolder.Id)
 	for _, f := range meeting.RecordingFiles {
+
+		//check if meeting duration is shorter than minimum
+		start, err := time.Parse(time.RFC3339, f.RecordingStart)
+		if err != nil {
+			return fmt.Errorf("while parsing recording start %s - %s: %w", f.ID, f.RecordingStart, err)
+		}
+
+		end, err2 := time.Parse(time.RFC3339, f.RecordingEnd)
+		if err2 != nil {
+			return fmt.Errorf("while parsing recording end %s - %s: %w", f.ID, f.RecordingEnd, err)
+		}
+
+		if err == nil && err2 == nil {
+			duration := int(end.Sub(start).Minutes())
+			if duration < params.minDuration {
+				z.logger.Printf("skipped %d minute recording at %s - %s", duration, start, end)
+				continue
+			}
+		}
+	
 		name := recordingFileName(meeting, f)
 		if _, exists := alreadyUploaded[name]; exists {
 			z.logger.Printf("skipping upload %s to %s/%s, already exists", name, parent.Name, meetingFolder.Name)
@@ -314,7 +362,7 @@ func (z *Config) Run(params runParams) error {
 				z.logger.Printf("skipped %d minute meeting at %s", meeting.Duration, meeting.StartTime)
 				continue
 			}
-			if err := z.Archive(meeting); err != nil {
+			if err := z.Archive(meeting, params); err != nil {
 				z.logger.Print(err)
 			}
 		}
@@ -326,6 +374,49 @@ func (z *Config) Run(params runParams) error {
 	z.logger.Print("done archiving recordings")
 	return nil
 }
+
+var (
+    archIsRunning   bool
+    archIsRunningMu sync.Mutex
+
+)
+
+func doRun(zat *Config, params runParams){
+	zat.logger.Print("starting archive tool")
+	if !zat.googleClient.HasCreds() {
+		zat.logger.Println("no Google creds")
+		return
+	}
+	if !zat.zoomClient.HasCreds() {
+		zat.logger.Println("no Zoom creds")
+		return
+	}
+
+	archIsRunningMu.Lock()
+	start := !archIsRunning
+	archIsRunning = true
+	archIsRunningMu.Unlock()
+
+	if start {
+		var wg sync.WaitGroup
+		if zat != nil {
+			wg.Add(1)
+			go func() {
+				if err := zat.Run(params); err != nil {
+					zat.logger.Println(err)
+				}
+				wg.Done()
+				
+				archIsRunningMu.Lock()
+				archIsRunning = false
+				archIsRunningMu.Unlock()
+			}()
+		}
+	}else{
+		zat.logger.Println("archiving skipped, it's already running")
+	}
+}
+
 
 func main() {
 	cfgDir := cmd.FlagConfigDir()
@@ -353,13 +444,23 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	
+	rp := runParams{
+			minDuration: *minDuration,
+			since:       *since,
+		}
+	
+	zat, err := NewConfigFromFile(logger, cmd.ZatConfigPath, googleClient, zoomClient)
+	if err != nil {
+		logger.Println("failed to load config", err)
+	}
 
 	var wg sync.WaitGroup
 	if !*noServer {
 		wg.Add(1)
 		server := http.Server{
 			Addr:    *addr,
-			Handler: NewMux(logger, googleClient, zoomClient),
+			Handler: NewMux(zat, rp),
 		}
 		go func() {
 			logger.Printf("starting on http://%s", server.Addr)
@@ -370,32 +471,7 @@ func main() {
 		}()
 	}
 
-	zat, err := NewConfigFromFile(logger, cmd.ZatConfigPath, googleClient, zoomClient)
-	if err != nil {
-		logger.Println("failed to load config", err)
-	}
-
-	if !googleClient.HasCreds() {
-		logger.Println("no google creds")
-	}
-	if !zoomClient.HasCreds() {
-		logger.Println("no zoom creds")
-	}
-
-	if zat != nil {
-		wg.Add(1)
-		go func() {
-			rp := runParams{
-				minDuration: *minDuration,
-				since:       *since,
-			}
-			logger.Print("starting archive tool")
-			if err := zat.Run(rp); err != nil {
-				logger.Println(err)
-			}
-			wg.Done()
-		}()
-	}
-
+	doRun(zat, rp)
+	
 	wg.Wait()
 }
