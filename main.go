@@ -27,7 +27,7 @@ func NewMux(zat *Config, params runParams) *http.ServeMux {
 	logger := zat.logger
 	googleClient := zat.googleClient
 	zoomClient := zat.zoomClient
-	
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -62,15 +62,15 @@ func NewMux(zat *Config, params runParams) *http.ServeMux {
 		} else if googleClient.HasCreds() && zoomClient.HasCreds() {
 			w.Write([]byte("<br/><a href=\"/archive\">Archive Now</a>"))
 		} else {
-			w.Write([]byte("<br/>Login, to be able to archive"))	
+			w.Write([]byte("<br/>Login, to be able to archive"))
 		}
 
-		if len(archDetails)>0 {
+		if len(archDetails) > 0 {
 			w.Write([]byte("<br/><br/><table><tr><th>Name</th><th>Date</th><th>Files</th><th>Status</th></th>"))
 			for i := 0; i < len(archDetails); i++ {
 				arch := archDetails[i]
 				w.Write([]byte(fmt.Sprintf("<tr><td><a href=\"%s\">%s</a></td><td>%s</td><td>%d</td><td><a href=\"%s\">%s</a></td></tr>",
-											arch.zoomUrl, arch.name,arch.date,arch.fileNumber,arch.googleDriveURL,arch.status)))
+					arch.zoomUrl, arch.name, arch.date, arch.fileNumber, arch.googleDriveURL, arch.status)))
 			}
 			w.Write([]byte("</table>"))
 		}
@@ -260,11 +260,11 @@ func mkdir(ctx context.Context, gdrive *drive.Service, parent *drive.File, folde
 
 func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 
-	var curArchMeeting = archivedMeeting{ name: meeting.Topic,
-											  fileNumber: 0,
-											  status: "archiving",
-											  date: meeting.StartTime.Format("2006-01-02 15:04"),
-											  zoomUrl: meeting.ShareURL}
+	var curArchMeeting = archivedMeeting{name: meeting.Topic,
+		fileNumber: 0,
+		status:     "archiving",
+		date:       meeting.StartTime.Format("2006-01-02 15:04"),
+		zoomUrl:    meeting.ShareURL}
 	archDetails = append(archDetails, &curArchMeeting)
 
 	// check what is already uploaded for this meeting
@@ -297,8 +297,8 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 		z.logger.Printf("using existing folder %s: https://drive.google.com/drive/folders/%s",
 			meetingFolder.Name, meetingFolder.Id)
 	}
-	
-	curArchMeeting.googleDriveURL = "https://drive.google.com/drive/folders/"+meetingFolder.Id
+
+	curArchMeeting.googleDriveURL = "https://drive.google.com/drive/folders/" + meetingFolder.Id
 
 	// list folder for this meeting
 	alreadyUploaded := make(map[string]struct{})
@@ -348,7 +348,7 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 				continue
 			}
 		}
-	
+
 		name := recordingFileName(meeting, f)
 		if _, exists := alreadyUploaded[name]; exists {
 			curArchMeeting.status = "done"
@@ -414,21 +414,21 @@ func (z *Config) Run(params runParams) error {
 }
 
 type archivedMeeting struct {
-	name string
-	fileNumber int
-	status string
-	date string
-	zoomUrl string
+	name           string
+	fileNumber     int
+	status         string
+	date           string
+	zoomUrl        string
 	googleDriveURL string
 }
 
 var (
-    archIsRunning   bool
-    archIsRunningMu sync.Mutex
-    archDetails = []*archivedMeeting{}
+	archIsRunning   bool
+	archIsRunningMu sync.Mutex
+	archDetails     = []*archivedMeeting{}
 )
 
-func doRun(zat *Config, params runParams){
+func doRun(zat *Config, params runParams) {
 	zat.logger.Print("starting archive tool")
 	if !zat.googleClient.HasCreds() {
 		zat.logger.Println("no Google creds")
@@ -453,17 +453,16 @@ func doRun(zat *Config, params runParams){
 					zat.logger.Println(err)
 				}
 				wg.Done()
-				
+
 				archIsRunningMu.Lock()
 				archIsRunning = false
 				archIsRunningMu.Unlock()
 			}()
 		}
-	}else{
+	} else {
 		zat.logger.Println("archiving skipped, it's already running")
 	}
 }
-
 
 func main() {
 	cfgDir := cmd.FlagConfigDir()
@@ -491,12 +490,12 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	
+
 	rp := runParams{
-			minDuration: *minDuration,
-			since:       *since,
-		}
-	
+		minDuration: *minDuration,
+		since:       *since,
+	}
+
 	zat, err := NewConfigFromFile(logger, cmd.ZatConfigPath, googleClient, zoomClient)
 	if err != nil {
 		logger.Println("failed to load config", err)
