@@ -91,7 +91,23 @@ func (c *Client) updateCreds(token *oauth2.Token) {
 }
 
 func (c *Client) HasCreds() bool {
-	return c.credentials.Valid()
+	valid := c.credentials.Valid()
+	
+	if !valid {
+		c.logger.Println("Google credentias not valid, updating token")
+		src := c.config.TokenSource(context.TODO(), c.credentials)
+		newToken, err := src.Token() // this actually goes and renews the tokens
+		if err != nil {
+			c.logger.Printf("error updating google token %w", err)
+			return false
+		}
+		if newToken.AccessToken != c.credentials.AccessToken {
+     		c.updateCreds(newToken)
+     		c.credentials = newToken
+     		c.logger.Println("Google credentias updated and saved to disk")
+   		}
+	}
+	return true
 }
 
 func (c *Client) OauthRedirect(w http.ResponseWriter, r *http.Request) {
