@@ -327,17 +327,15 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 		meeting.ID, meetingFolder.Name, meetingFolder.Id)
 	for _, f := range meeting.RecordingFiles {
 
-		//check if meeting duration is shorter than minimum
+		//check if recording file duration is shorter than minimum
 		start, err := time.Parse(time.RFC3339, f.RecordingStart)
 		if err != nil {
-			curArchMeeting.status = "error"
-			return fmt.Errorf("while parsing recording start %s - %s: %w", f.ID, f.RecordingStart, err)
+			z.logger.Printf("couldn't parse file recording start %s - %s: %w", f.ID, f.RecordingStart, err)
 		}
 
 		end, err2 := time.Parse(time.RFC3339, f.RecordingEnd)
 		if err2 != nil {
-			curArchMeeting.status = "error"
-			return fmt.Errorf("while parsing recording end %s - %s: %w", f.ID, f.RecordingEnd, err)
+			z.logger.Printf("couldn't parse file recording end %s - %s: %w", f.ID, f.RecordingStart, err)
 		}
 
 		if err == nil && err2 == nil {
