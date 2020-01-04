@@ -87,7 +87,7 @@ func NewMux(logger *log.Logger, googleClient *google.Client, zoomClient *zoom.Cl
 			return
 		}
 
-		recordings, err := zoomClient.ListRecordings(time.Now().Add(-168 * time.Hour), "")
+		recordings, err := zoomClient.ListRecordings(time.Now().Add(-168*time.Hour), "")
 		if err != nil {
 			logger.Print(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -305,7 +305,7 @@ func (z *Config) Run(params runParams) error {
 	z.logger.Print("archiving recordings")
 	nextPageToken := ""
 	for {
-		recordings, err := z.zoomClient.ListRecordings(time.Now().Add(-1 * params.since), nextPageToken)
+		recordings, err := z.zoomClient.ListRecordings(time.Now().Add(-1*params.since), nextPageToken)
 		if err != nil {
 			return fmt.Errorf("failed to list recordings: %w", err)
 		}
@@ -355,7 +355,7 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-	if ! *noServer {
+	if !*noServer {
 		wg.Add(1)
 		server := http.Server{
 			Addr:    *addr,
@@ -375,10 +375,10 @@ func main() {
 		logger.Println("failed to load config", err)
 	}
 
-	if ! googleClient.HasCreds() {
+	if !googleClient.HasCreds() {
 		logger.Println("no google creds")
 	}
-	if ! zoomClient.HasCreds() {
+	if !zoomClient.HasCreds() {
 		logger.Println("no zoom creds")
 	}
 
