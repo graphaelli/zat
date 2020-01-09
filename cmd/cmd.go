@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	LogFmt = log.Ldate|log.Ltime|log.Lshortfile
+	LogFmt = log.Ldate | log.Ltime | log.Lshortfile
 
 	// google API credentials - oath2.Config{}, read only ok
 	GoogleConfigPath = "google.config.json"
@@ -19,7 +19,6 @@ const (
 
 	ZatConfigPath = "zat.yml"
 )
-
 
 func FlagConfigDir() *string {
 	return flag.String("config-dir", ".", "base directory for configuration files")
