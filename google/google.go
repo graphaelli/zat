@@ -92,7 +92,7 @@ func (c *Client) updateCreds(token *oauth2.Token) {
 
 func (c *Client) HasCreds() bool {
 	valid := c.credentials.Valid()
-	
+
 	if !valid {
 		c.logger.Println("Google credentias not valid, updating token")
 		src := c.config.TokenSource(context.TODO(), c.credentials)
@@ -102,10 +102,10 @@ func (c *Client) HasCreds() bool {
 			return false
 		}
 		if newToken.AccessToken != c.credentials.AccessToken {
-     		c.updateCreds(newToken)
-     		c.credentials = newToken
-     		c.logger.Println("Google credentias updated and saved to disk")
-   		}
+			c.updateCreds(newToken)
+			c.credentials = newToken
+			c.logger.Println("Google credentias updated and saved to disk")
+		}
 	}
 	return true
 }
