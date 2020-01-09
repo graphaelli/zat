@@ -83,7 +83,7 @@ func NewMux(zat *Config, params runParams) *http.ServeMux {
 			return
 		}
 
-		doRun(zat, params)
+		go doRun(zat, params)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
 
@@ -442,23 +442,19 @@ func doRun(zat *Config, params runParams) {
 	archIsRunning = true
 	archIsRunningMu.Unlock()
 
-	if start {
-		var wg sync.WaitGroup
-		if zat != nil {
-			wg.Add(1)
-			go func() {
-				if err := zat.Run(params); err != nil {
-					zat.logger.Println(err)
-				}
-				wg.Done()
-
-				archIsRunningMu.Lock()
-				archIsRunning = false
-				archIsRunningMu.Unlock()
-			}()
-		}
-	} else {
+	if !start {
 		zat.logger.Println("archiving skipped, it's already running")
+		return
+	}
+
+	if zat != nil {
+		if err := zat.Run(params); err != nil {
+			zat.logger.Println(err)
+		}
+
+		archIsRunningMu.Lock()
+		archIsRunning = false
+		archIsRunningMu.Unlock()
 	}
 }
 
@@ -515,7 +511,11 @@ func main() {
 		}()
 	}
 
-	doRun(zat, rp)
+	wg.Add(1)
+	go func() {
+		doRun(zat, rp)
+		wg.Done()
+	}()
 
 	wg.Wait()
 }
