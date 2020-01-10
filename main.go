@@ -427,6 +427,10 @@ var (
 )
 
 func doRun(zat *Config, params runParams) {
+	if zat == nil {
+		// no logger to log with
+		return
+	}
 	zat.logger.Print("starting archive tool")
 	if !zat.googleClient.HasCreds() {
 		zat.logger.Println("no Google creds")
@@ -471,7 +475,7 @@ func main() {
 	googleClient, err := google.NewClientFromFile(
 		logger,
 		path.Join(*cfgDir, cmd.GoogleConfigPath),
-		google.NewCredentialsManager(cmd.GoogleCredsPath).ClientOption,
+		google.NewCredentialsManager(path.Join(*cfgDir, cmd.GoogleCredsPath)).ClientOption,
 	)
 	if err != nil {
 		logger.Fatal(err)
@@ -479,7 +483,7 @@ func main() {
 	zoomClient, err := zoom.NewClientFromFile(
 		logger,
 		path.Join(*cfgDir, cmd.ZoomConfigPath),
-		zoom.NewCredentialsManager(cmd.ZoomCredsPath).ClientOption,
+		zoom.NewCredentialsManager(path.Join(*cfgDir, cmd.ZoomCredsPath)).ClientOption,
 	)
 	if err != nil {
 		logger.Fatal(err)
@@ -490,8 +494,9 @@ func main() {
 		since:       *since,
 	}
 
-	zat, err := NewConfigFromFile(logger, cmd.ZatConfigPath, googleClient, zoomClient)
+	zat, err := NewConfigFromFile(logger, path.Join(*cfgDir, cmd.ZatConfigPath), googleClient, zoomClient)
 	if err != nil {
+		// ok to continue without config, just can't do archival
 		logger.Println("failed to load config", err)
 	}
 
@@ -511,11 +516,14 @@ func main() {
 		}()
 	}
 
-	wg.Add(1)
-	go func() {
-		doRun(zat, rp)
-		wg.Done()
-	}()
+	if zat != nil {
+		// already logged that config is loaded, just skip the run
+		wg.Add(1)
+		go func() {
+			doRun(zat, rp)
+			wg.Done()
+		}()
+	}
 
 	wg.Wait()
 }
