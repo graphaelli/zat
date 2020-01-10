@@ -427,6 +427,10 @@ var (
 )
 
 func doRun(zat *Config, params runParams) {
+	if zat == nil {
+		// no logger to log with
+		return
+	}
 	zat.logger.Print("starting archive tool")
 	if !zat.googleClient.HasCreds() {
 		zat.logger.Println("no Google creds")
@@ -492,6 +496,7 @@ func main() {
 
 	zat, err := NewConfigFromFile(logger, cmd.ZatConfigPath, googleClient, zoomClient)
 	if err != nil {
+		// ok to continue without config, just can't do archival
 		logger.Println("failed to load config", err)
 	}
 
@@ -511,11 +516,14 @@ func main() {
 		}()
 	}
 
-	wg.Add(1)
-	go func() {
-		doRun(zat, rp)
-		wg.Done()
-	}()
+	if zat != nil {
+		// already logged that config is loaded, just skip the run
+		wg.Add(1)
+		go func() {
+			doRun(zat, rp)
+			wg.Done()
+		}()
+	}
 
 	wg.Wait()
 }
