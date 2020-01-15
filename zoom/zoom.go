@@ -160,7 +160,7 @@ func (c *Client) HasCreds() bool {
 	valid := c.credentials.Valid()
 
 	if !valid {
-		c.logger.Println("Zoom credentias not valid, updating token")
+		c.logger.Println("Zoom credentials not valid, updating token")
 		src := c.config.TokenSource(context.TODO(), c.credentials)
 		newToken, err := src.Token() // this actually goes and renews the tokens
 		if err != nil {
@@ -170,7 +170,7 @@ func (c *Client) HasCreds() bool {
 		if newToken.AccessToken != c.credentials.AccessToken {
 			c.updateCreds(newToken)
 			c.credentials = newToken
-			c.logger.Println("Zoom credentias updated and saved to disk")
+			c.logger.Println("Zoom credentials updated and saved to disk")
 		}
 	}
 	return true
