@@ -5,8 +5,8 @@ Copies Zoom recordings to Google Drive.
 ## Why
 
 * Improve discoverability of Zoom recordings
-* Extend retention longer than Zoom's 6 months
 * Preserve recordings when Zoom user leaves the org
+* Reduce cost of long term retention (maybe)
 
 ## How
 
