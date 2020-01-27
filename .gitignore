@@ -1,10 +1,11 @@
-.idea/
 findfolders
 listrecordings
 upload
+!*/
 zat
 zat.yml
 google.config.json
 google.creds.json
 zoom.config.json
 zoom.creds.json
+.idea/
