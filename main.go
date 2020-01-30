@@ -276,7 +276,7 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 	parentFolderName := z.copies[meeting.ID]
 	if parentFolderName == "" {
 		curArchMeeting.status = "error"
-		return fmt.Errorf("no mapping found for meeting %d", meeting.ID)
+		return fmt.Errorf("no mapping found for meeting %d %q", meeting.ID, meeting.Topic)
 	}
 	parent, err := gdrive.Files.Get(parentFolderName).SupportsAllDrives(true).Do()
 	if err != nil {
