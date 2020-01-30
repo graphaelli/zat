@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -40,13 +41,22 @@ func main() {
 	}
 	logger.Printf("%d recording%s found", recordings.TotalRecords, pluralize(recordings.TotalRecords))
 	for _, meeting := range recordings.Meetings {
-		fmt.Printf("%s %d %s\n", meeting.StartTime.Format("2006-01-02"), meeting.ID, meeting.Topic)
-		for _, f := range meeting.RecordingFiles {
+		fmt.Printf("%s %d %q\n", meeting.StartTime.Format("2006-01-02"), meeting.ID, meeting.Topic)
+		recs := make(map[string]*zoom.RecordingFile, len(meeting.RecordingFiles))
+		recTypes := make([]string, 0, len(meeting.RecordingFiles))
+		for i, f := range meeting.RecordingFiles {
 			typ := f.RecordingType
 			if typ == "" {
 				typ = f.FileType
 			}
-			fmt.Printf("\t%s %s\n", strings.ToLower(typ), f.DownloadURL)
+			uniqType := fmt.Sprintf("%s|%d", strings.ToLower(typ), i)
+			capture := f
+			recs[uniqType] = &capture
+			recTypes = append(recTypes, uniqType)
+		}
+		sort.Strings(recTypes)
+		for _, typ := range recTypes {
+			fmt.Printf("  %-32s %s\n", typ[:strings.LastIndex(typ, "|")], recs[typ].DownloadURL)
 		}
 	}
 }
