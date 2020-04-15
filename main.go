@@ -364,6 +364,10 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 			curArchMeeting.status = "error"
 			return fmt.Errorf("download failed, got %d error: %#v", r.StatusCode, r)
 		}
+		if contentType := r.Header.Get("content-type"); strings.HasPrefix(contentType, "text/html") {
+			curArchMeeting.status = "error"
+			return fmt.Errorf("download failed, got %s content", contentType)
+		}
 		_, err = gdrive.Files.Create(&drive.File{
 			Name:    name,
 			Parents: []string{meetingFolder.Id},
