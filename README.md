@@ -39,7 +39,7 @@ Zoom does somethng funny when `-since` is > 30 days, there is a todo for that.
     * User-managed
     * No need to publish
     * Set redirect URI to `http://127.0.0.1.ip.es.io:8080/oauth/zoom`
-  * Saved credentials to `zoom.config.json` with content:
+  * Save credentials to `zoom.config.json` with content:
 ```json
 {
   "id":             "your-id",
@@ -104,3 +104,22 @@ $ $ ./listrecordings -since 96h
 ```
 
 zat provides a web interface with similar functionality at http://localhost:8080/zoom.
+
+#### Scheduling
+
+On macOS pre-10.15 (Catalina) and Linux, `cron` is sufficient, eg:
+
+```
+0 7,10,15,22 * * * zat -no-server -config-dir ~/path/to/zat/config/dir
+```
+
+On macOS 10.15+, new security restrictions make `cron` less attractive.
+
+Instead use `launchd`.
+A sample configuration is included under `contrib/`.
+Load it with:
+```
+launchctl load contrib/zat.plist
+```
+
+If prompoted the first time the job runs, grant `zat` access to the config directory.
