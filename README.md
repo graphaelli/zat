@@ -108,7 +108,7 @@ zat provides a web interface with similar functionality at http://localhost:8080
 On macOS pre-10.15 (Catalina) and Linux, `cron` is sufficient, eg:
 
 ```
-0 7,10,15,22 * * * zat -no-server -config-dir ~/path/to/zat/config/dir
+0 8,10,15,22 * * * zat -no-server -config-dir ~/path/to/zat/config/dir
 ```
 
 On macOS 10.15+, new security restrictions make `cron` less attractive.
