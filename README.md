@@ -21,10 +21,7 @@ $ ./zat
 
 `zat` will persist tokens to disk at `google.creds.json` and `zat.creds.json` - be sure to guard those files carefully as permissions are neceesarily wide.
 
-_note: zoom credentials do not automatically refresh yet, `zat` will require re-authorization after an hour.
-Until this is resolved, you will need to run an instance of the zat web server before each zat archival.
-
-Once tokens have been obtained, `zat -no-server` will perform only archival duties.
+Once tokens have been obtained, `zat -no-server` will perform only archival duties and then exit.
 
 `zat` always attempts to archive, to only start the web server use: `-since 0s`.
 
