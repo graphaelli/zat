@@ -25,8 +25,6 @@ Once tokens have been obtained, `zat -no-server` will perform only archival duti
 
 `zat` always attempts to archive, to only start the web server use: `-since 0s`.
 
-Zoom does somethng funny when `-since` is > 30 days, there is a todo for that.
-
 ### Credentials
 
 * Obtain Google credentials
@@ -123,3 +121,8 @@ launchctl load contrib/zat.plist
 ```
 
 If prompoted the first time the job runs, grant `zat` access to the config directory.
+
+## Also
+
+* Password protected recordings can not be accessed due to a Zoom limitation (password protected meetings are still supported though). - #13
+* Zoom doesn't look back farther than 30 days when `-since` is > 30 days. - #16
