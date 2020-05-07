@@ -21,14 +21,9 @@ $ ./zat
 
 `zat` will persist tokens to disk at `google.creds.json` and `zat.creds.json` - be sure to guard those files carefully as permissions are neceesarily wide.
 
-_note: zoom credentials do not automatically refresh yet, `zat` will require re-authorization after an hour.
-Until this is resolved, you will need to run an instance of the zat web server before each zat archival.
-
-Once tokens have been obtained, `zat -no-server` will perform only archival duties.
+Once tokens have been obtained, `zat -no-server` will perform only archival duties and then exit.
 
 `zat` always attempts to archive, to only start the web server use: `-since 0s`.
-
-Zoom does somethng funny when `-since` is > 30 days, there is a todo for that.
 
 ### Credentials
 
@@ -42,7 +37,7 @@ Zoom does somethng funny when `-since` is > 30 days, there is a todo for that.
     * User-managed
     * No need to publish
     * Set redirect URI to `http://127.0.0.1.ip.es.io:8080/oauth/zoom`
-  * Saved credentials to `zoom.config.json` with content:
+  * Save credentials to `zoom.config.json` with content:
 ```json
 {
   "id":             "your-id",
@@ -107,3 +102,27 @@ $ $ ./listrecordings -since 96h
 ```
 
 zat provides a web interface with similar functionality at http://localhost:8080/zoom.
+
+#### Scheduling
+
+On macOS pre-10.15 (Catalina) and Linux, `cron` is sufficient, eg:
+
+```
+0 8,10,15,22 * * * zat -no-server -config-dir ~/path/to/zat/config/dir
+```
+
+On macOS 10.15+, new security restrictions make `cron` less attractive.
+
+Instead use `launchd`.
+A sample configuration is included under `contrib/`.
+Load it with:
+```
+launchctl load contrib/zat.plist
+```
+
+If prompoted the first time the job runs, grant `zat` access to the config directory.
+
+## Also
+
+* Password protected recordings can not be accessed due to a Zoom limitation (password protected meetings are still supported though). - #13
+* Zoom doesn't look back farther than 30 days when `-since` is > 30 days. - #16
