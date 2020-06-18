@@ -12,9 +12,9 @@ Copies Zoom recordings to Google Drive.
 
 `zat` requires `go` to build - 1.13+ is recommended, for proper error formatting, but will work with older versions.
 
-```
-$ go build .
-$ ./zat
+```sh
+go build .
+./zat
 ```
 
 `zat` should start without any configuration but isn't very useful without credentials - see below for setup.
@@ -72,7 +72,7 @@ The google configuration is the ID of the folder where the recordings will be st
 
 `cmd/google/findfolders` can assist in tracking down folders and IDs like:
 
-```
+```sh
 $ go build ./cmd/google/findfolders
 $ ./findfolders -query 'name = "bar"'
 foo                                                          DpB3XhhzV87LfEeLrM-nCopTtHDWxqVGH https://drive.google.com/drive/folders/DpB3XhhzV87LfEeLrM-nCopTtHDWxqVGH
@@ -88,22 +88,22 @@ The zoom configuration is the meeting ID - the dashes are optional.
 
 `cmd/zoom/listrecordings` can assist in tracking down meeting IDs like:
 
-```
+```sh
 $ go build ./cmd/zoom/listrecordings
 $ $ ./listrecordings -since 96h
 2019/11/25 12:22:54 listrecordings.go:41: 2 recordings found
 2019-11-21 945106202 UI Weekly
-	audio_transcript https://zoom.us/recording/download/wwww
-	shared_screen_with_speaker_view https://zoom.us/recording/download/xxxx
-	chat_file https://zoom.us/recording/download/yyyy
-	audio_only https://zoom.us/recording/download/zzzz
-	timeline https://zoom.us/recording/download/11111111-1111-1111-1111-111111111111
+    audio_transcript https://zoom.us/recording/download/wwww
+    shared_screen_with_speaker_view https://zoom.us/recording/download/xxxx
+    chat_file https://zoom.us/recording/download/yyyy
+    audio_only https://zoom.us/recording/download/zzzz
+    timeline https://zoom.us/recording/download/11111111-1111-1111-1111-111111111111
 2019-11-21 906290321 Team Weekly
-	audio_transcript https://zoom.us/recording/download/aaaa
-	shared_screen_with_speaker_view https://zoom.us/recording/download/bbbb
-	chat_file https://zoom.us/recording/download/cccc
-	audio_only https://zoom.us/recording/download/dddd
-	timeline https://zoom.us/recording/download/22222222-2222-2222-2222-222222222222
+    audio_transcript https://zoom.us/recording/download/aaaa
+    shared_screen_with_speaker_view https://zoom.us/recording/download/bbbb
+    chat_file https://zoom.us/recording/download/cccc
+    audio_only https://zoom.us/recording/download/dddd
+    timeline https://zoom.us/recording/download/22222222-2222-2222-2222-222222222222
 ```
 
-zat provides a web interface with similar functionality at http://localhost:8080/zoom.
+zat provides a web interface with similar functionality at [http://localhost:8080/zoom].
