@@ -9,8 +9,8 @@ import (
 	"github.com/graphaelli/zat/zoom"
 )
 
-// ApiHandler mocks the zoom API endpoints
-func ApiHandler(t *testing.T) func(w http.ResponseWriter, r *http.Request) {
+// APIHandler mocks the zoom API endpoints
+func APIHandler(t *testing.T) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		t.Log("mock zoom handler handling", r.URL.String())
 

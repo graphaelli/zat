@@ -27,7 +27,7 @@ var (
 func TestGoogleOauth(t *testing.T) {
 	// mock google APIs and OAuth endpoints
 	googleMux := http.NewServeMux()
-	// googleMux.HandleFunc("/api/", googlemock.ApiHandler(t))
+	// googleMux.HandleFunc("/api/", googlemock.APIHandler(t))
 	googleServer := httptest.NewServer(googleMux)
 	defer googleServer.Close()
 
@@ -102,7 +102,7 @@ func TestGoogleOauth(t *testing.T) {
 func TestZoomOauth(t *testing.T) {
 	// mock zoom APIs and OAuth endpoints
 	zoomMux := http.NewServeMux()
-	zoomMux.HandleFunc("/api/", zoommock.ApiHandler(t))
+	zoomMux.HandleFunc("/api/", zoommock.APIHandler(t))
 	zoomServer := httptest.NewServer(zoomMux)
 	defer zoomServer.Close()
 
