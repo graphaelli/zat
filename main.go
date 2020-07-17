@@ -15,6 +15,9 @@ import (
 	"sync"
 	"time"
 
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
+	"golang.org/x/net/context/ctxhttp"
 	"google.golang.org/api/drive/v3"
 	"gopkg.in/yaml.v2"
 
@@ -104,7 +107,7 @@ func NewMux(zat *Config, params runParams) *http.ServeMux {
 		if andQuery != "" {
 			query += " and " + andQuery
 		}
-		files, err := googleClient.ListFiles(context.TODO(), query, "")
+		files, err := googleClient.ListFiles(r.Context(), query, "")
 		if err != nil {
 			logger.Print(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -128,7 +131,7 @@ func NewMux(zat *Config, params runParams) *http.ServeMux {
 			return
 		}
 
-		recordings, err := zoomClient.ListRecordings(time.Now().Add(-168*time.Hour), "")
+		recordings, err := zoomClient.ListRecordings(r.Context(), time.Now().Add(-168*time.Hour), "")
 		if err != nil {
 			logger.Print(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -232,10 +235,13 @@ func recordingFileName(meeting zoom.Meeting, recording zoom.RecordingFile) strin
 }
 
 func mkdir(ctx context.Context, gdrive *drive.Service, parent *drive.File, folder string) (*drive.File, error, bool) {
+	span, ctx := apm.StartSpan(ctx, "mkdir", "app")
+	defer span.End()
+
 	// maybe no need to check if it exists first, can just "mkdir -p" no matter what? for now look to enable dryrun
 	// exact match 1 folder
 	query := fmt.Sprintf("mimeType=%q and %q in parents and name=%q and trashed=false", google.MimeTypeFolder, parent.Id, folder)
-	if result, err := gdrive.Files.List().SupportsTeamDrives(true).IncludeTeamDriveItems(true).Q(query).Do(); err != nil {
+	if result, err := gdrive.Files.List().Context(ctx).SupportsTeamDrives(true).IncludeTeamDriveItems(true).Q(query).Do(); err != nil {
 		return nil, err, false
 	} else {
 		fileCount := len(result.Files)
@@ -251,14 +257,16 @@ func mkdir(ctx context.Context, gdrive *drive.Service, parent *drive.File, folde
 		Name:     folder,
 		MimeType: google.MimeTypeFolder,
 		Parents:  []string{parent.Id},
-	}).SupportsAllDrives(true).Do(); err != nil {
+	}).Context(ctx).SupportsAllDrives(true).Do(); err != nil {
 		return nil, err, false
 	} else {
 		return result, nil, true
 	}
 }
 
-func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
+func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runParams) error {
+	span, ctx := apm.StartSpan(ctx, "Archive", "app")
+	defer span.End()
 
 	var curArchMeeting = archivedMeeting{name: meeting.Topic,
 		fileNumber: 0,
@@ -268,7 +276,7 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 	archDetails = append(archDetails, &curArchMeeting)
 
 	// check what is already uploaded for this meeting
-	gdrive, err := z.googleClient.Service(context.TODO())
+	gdrive, err := z.googleClient.Service(ctx)
 	if err != nil {
 		return fmt.Errorf("while creating gdrive client: %w", err)
 	}
@@ -278,14 +286,15 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 		curArchMeeting.status = "error"
 		return fmt.Errorf("no mapping found for meeting %d %q", meeting.ID, meeting.Topic)
 	}
-	parent, err := gdrive.Files.Get(parentFolderName).SupportsAllDrives(true).Do()
+
+	parent, err := gdrive.Files.Get(parentFolderName).Context(ctx).SupportsAllDrives(true).Do()
 	if err != nil {
 		curArchMeeting.status = "error"
 		return fmt.Errorf("while finding parent of %q: %w", parentFolderName, err)
 	}
 
 	// parent folder for this meeting
-	meetingFolder, err, created := mkdir(context.TODO(), gdrive, parent, meetingFolderName(meeting))
+	meetingFolder, err, created := mkdir(ctx, gdrive, parent, meetingFolderName(meeting))
 	if err != nil {
 		curArchMeeting.status = "error"
 		return fmt.Errorf("while finding/creating meeting folder: %w", err)
@@ -304,7 +313,11 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 	alreadyUploaded := make(map[string]struct{})
 	nextPageToken := ""
 	for page := 0; page < 5; page++ {
-		call := gdrive.Files.List().SupportsTeamDrives(true).IncludeTeamDriveItems(true).Q(fmt.Sprintf("%q in parents", meetingFolder.Id))
+		call := gdrive.Files.List().
+			Context(ctx).
+			SupportsTeamDrives(true).
+			IncludeTeamDriveItems(true).
+			Q(fmt.Sprintf("%q in parents", meetingFolder.Id))
 		if nextPageToken != "" {
 			call = call.PageToken(nextPageToken)
 		}
@@ -355,11 +368,13 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 			continue
 		}
 		z.logger.Printf("uploading %q to \"%s/%s\"", name, parent.Name, meetingFolder.Name)
-		r, err := http.Get(f.DownloadURL)
+		r, err := ctxhttp.Get(ctx, http.DefaultClient, f.DownloadURL)
 		if err != nil {
 			curArchMeeting.status = "error"
 			return fmt.Errorf("while downloading recording %s: %w", f.DownloadURL, err)
 		}
+		defer r.Body.Close()
+
 		if r.StatusCode != http.StatusOK {
 			curArchMeeting.status = "error"
 			return fmt.Errorf("while downloading recording %s: download failed, got %d error: %#v",
@@ -373,7 +388,7 @@ func (z *Config) Archive(meeting zoom.Meeting, params runParams) error {
 		_, err = gdrive.Files.Create(&drive.File{
 			Name:    name,
 			Parents: []string{meetingFolder.Id},
-		}).Media(r.Body).SupportsAllDrives(true).Do()
+		}).Context(ctx).Media(r.Body).SupportsAllDrives(true).Do()
 		if err != nil {
 			curArchMeeting.status = "error"
 			return fmt.Errorf("while uploading recording %s: %w", f.DownloadURL, err)
@@ -391,12 +406,17 @@ type runParams struct {
 }
 
 func (z *Config) Run(params runParams) error {
+	tx := apm.DefaultTracer.StartTransaction("archiveRecordings", "background")
+	defer tx.End()
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+
 	z.logger.Print("archiving recordings")
 	archDetails = []*archivedMeeting{}
 	nextPageToken := ""
 	for {
-		recordings, err := z.zoomClient.ListRecordings(time.Now().Add(-1*params.since), nextPageToken)
+		recordings, err := z.zoomClient.ListRecordings(ctx, time.Now().Add(-1*params.since), nextPageToken)
 		if err != nil {
+			apm.CaptureError(ctx, err).Send()
 			return fmt.Errorf("failed to list recordings: %w", err)
 		}
 		for _, meeting := range recordings.Meetings {
@@ -404,8 +424,9 @@ func (z *Config) Run(params runParams) error {
 				z.logger.Printf("skipped %d minute meeting at %s", meeting.Duration, meeting.StartTime)
 				continue
 			}
-			if err := z.Archive(meeting, params); err != nil {
+			if err := z.Archive(ctx, meeting, params); err != nil {
 				z.logger.Print(err)
+				apm.CaptureError(ctx, err).Send()
 			}
 		}
 		nextPageToken = recordings.NextPageToken
@@ -478,6 +499,10 @@ func main() {
 
 	logger := log.New(os.Stderr, "", cmd.LogFmt)
 
+	// Instrument http.DefaultClient and http.DefaultTransport.
+	http.DefaultClient = apmhttp.WrapClient(http.DefaultClient)
+	http.DefaultTransport = apmhttp.WrapRoundTripper(http.DefaultTransport)
+
 	googleClient, err := google.NewClientFromFile(
 		logger,
 		path.Join(*cfgDir, cmd.GoogleConfigPath),
@@ -511,7 +536,7 @@ func main() {
 		wg.Add(1)
 		server := http.Server{
 			Addr:    *addr,
-			Handler: NewMux(zat, rp),
+			Handler: apmhttp.Wrap(NewMux(zat, rp)),
 		}
 		go func() {
 			logger.Printf("starting on http://%s", server.Addr)
