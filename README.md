@@ -120,9 +120,8 @@ Load it with:
 launchctl load contrib/zat.plist
 ```
 
-If prompoted the first time the job runs, grant `zat` access to the config directory.
+If prompted the first time the job runs, grant `zat` access to the config directory.
 
 ## Also
 
-* Password protected recordings can not be accessed due to a Zoom limitation (password protected meetings are still supported though). - #13
-* Zoom doesn't look back farther than 30 days when `-since` is > 30 days. - #16
+* Zoom doesn't look back farther than 30 days when `-since` is > 30 days. - [#16](https://github.com/graphaelli/zat/issues/16)
