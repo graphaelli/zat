@@ -17,7 +17,6 @@ import (
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
-	"golang.org/x/net/context/ctxhttp"
 	"google.golang.org/api/drive/v3"
 	"gopkg.in/yaml.v2"
 
@@ -368,7 +367,15 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 			continue
 		}
 		z.logger.Printf("uploading %q to \"%s/%s\"", name, parent.Name, meetingFolder.Name)
-		r, err := ctxhttp.Get(ctx, http.DefaultClient, f.DownloadURL)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.DownloadURL, nil)
+		if err != nil {
+			curArchMeeting.status = "error"
+			return fmt.Errorf("while building recording download request %s: %w", f.DownloadURL, err)
+		}
+		v := req.URL.Query()
+		v.Add("access_token", z.zoomClient.AccessToken())
+		req.URL.RawQuery = v.Encode()
+		r, err := http.DefaultClient.Do(req)
 		if err != nil {
 			curArchMeeting.status = "error"
 			return fmt.Errorf("while downloading recording %s: %w", f.DownloadURL, err)
