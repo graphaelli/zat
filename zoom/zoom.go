@@ -184,6 +184,10 @@ func (c *Client) addBearerAuth(r *http.Request) {
 	r.Header.Set("Authorization", "Bearer "+c.credentials.AccessToken)
 }
 
+func (c *Client) AccessToken() string {
+	return c.credentials.AccessToken
+}
+
 func (c *Client) NewApiRequest(ctx context.Context, method, uri string) (*http.Request, error) {
 	u := *c.apiBaseUrl
 	u.Path = path.Join(u.Path, uri)
