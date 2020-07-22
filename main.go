@@ -564,4 +564,16 @@ func main() {
 	}
 
 	wg.Wait()
+
+	flush := make(chan struct{})
+	go func() {
+		apm.DefaultTracer.Flush(nil)
+		close(flush)
+	}()
+	select {
+		case <-flush:
+			log.Println("tracer flushed")
+		case <-time.After(3*time.Second):
+			log.Println("tracer flush timeout")
+	}
 }
