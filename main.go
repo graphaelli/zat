@@ -572,8 +572,6 @@ func main() {
 	}()
 	select {
 		case <-flush:
-			log.Println("tracer flushed")
 		case <-time.After(3*time.Second):
-			log.Println("tracer flush timeout")
 	}
 }
