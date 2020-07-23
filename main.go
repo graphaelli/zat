@@ -564,4 +564,8 @@ func main() {
 	}
 
 	wg.Wait()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	apm.DefaultTracer.Flush(ctx.Done())
 }
