@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -35,7 +36,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	recordings, err := zoomClient.ListRecordings(time.Now().Add(-1**since), "")
+	recordings, err := zoomClient.ListRecordings(context.TODO(), time.Now().Add(-1**since), "")
 	if err != nil {
 		logger.Fatal(err)
 	}
