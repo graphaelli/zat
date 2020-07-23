@@ -565,13 +565,7 @@ func main() {
 
 	wg.Wait()
 
-	flush := make(chan struct{})
-	go func() {
-		apm.DefaultTracer.Flush(nil)
-		close(flush)
-	}()
-	select {
-		case <-flush:
-		case <-time.After(3*time.Second):
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	apm.DefaultTracer.Flush(ctx.Done())
 }
