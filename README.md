@@ -19,7 +19,7 @@ $ ./zat
 
 `zat` should start without any configuration but isn't very useful without credentials - see below for setup.
 
-`zat` will persist tokens to disk at `google.creds.json` and `zat.creds.json` - be sure to guard those files carefully as permissions are neceesarily wide.
+`zat` will persist tokens to disk at `google.creds.json` and `zat.creds.json` - be sure to guard those files carefully as permissions are necessarily wide.
 
 Once tokens have been obtained, `zat -no-server` will perform only archival duties and then exit.
 
