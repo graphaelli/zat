@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/oauth2"
 
@@ -50,7 +51,19 @@ func TestGoogleOauth(t *testing.T) {
 		t.Error(err)
 	}
 
-	mux := NewMux(muxLog, googleClient, nopZoomClient)
+	zat := &Config{
+		logger:       muxLog,
+		copies:       make(map[int64]string, 0),
+		googleClient: googleClient,
+		zoomClient:   nopZoomClient,
+	}
+
+	rp := runParams{
+		minDuration: 5,
+		since:       24 * time.Hour,
+	}
+
+	mux := NewMux(zat, rp)
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
@@ -123,7 +136,19 @@ func TestZoomOauth(t *testing.T) {
 		t.Error(err)
 	}
 
-	mux := NewMux(muxLog, nopGoogleClient, zoomClient)
+	zat := &Config{
+		logger:       muxLog,
+		copies:       make(map[int64]string, 0),
+		googleClient: nopGoogleClient,
+		zoomClient:   zoomClient,
+	}
+
+	rp := runParams{
+		minDuration: 5,
+		since:       24 * time.Hour,
+	}
+
+	mux := NewMux(zat, rp)
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
