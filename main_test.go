@@ -23,6 +23,10 @@ import (
 var (
 	nopGoogleClient = &google.Client{}
 	nopZoomClient   = &zoom.Client{}
+	rp              = runParams{
+		minDuration: 5,
+		since:       24 * time.Hour,
+	}
 )
 
 func TestGoogleOauth(t *testing.T) {
@@ -56,11 +60,6 @@ func TestGoogleOauth(t *testing.T) {
 		copies:       make(map[int64]string, 0),
 		googleClient: googleClient,
 		zoomClient:   nopZoomClient,
-	}
-
-	rp := runParams{
-		minDuration: 5,
-		since:       24 * time.Hour,
 	}
 
 	mux := NewMux(zat, rp)
@@ -141,11 +140,6 @@ func TestZoomOauth(t *testing.T) {
 		copies:       make(map[int64]string, 0),
 		googleClient: nopGoogleClient,
 		zoomClient:   zoomClient,
-	}
-
-	rp := runParams{
-		minDuration: 5,
-		since:       24 * time.Hour,
 	}
 
 	mux := NewMux(zat, rp)
