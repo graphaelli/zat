@@ -32,7 +32,6 @@ Once tokens have been obtained, `zat -no-server` will perform only archival duti
     * You may need to create a project, or use a dev project you have access to. If the project doesn't have OAuth consent screen info, you'll need to add that as well.
       * Choose "internal" user type, give it a name similar to the project name, and add your contact email
     * Choose "Web application" as the client ID type
-    * Name it "zat"
     * Set Authorized redirect URIs to `http://localhost:8080/oauth/google`
   * Save credentials to `google.config.json` (GCP Console > API & Services > Credentials > Download JSON)
 
