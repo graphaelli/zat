@@ -102,7 +102,7 @@ func (c *Client) HasCreds() bool {
 		src := c.config.TokenSource(context.TODO(), c.credentials)
 		newToken, err := src.Token() // this actually goes and renews the tokens
 		if err != nil {
-			c.logger.Printf("error updating google token %w", err)
+			c.logger.Printf("error updating google token %s", err)
 			return false
 		}
 		if newToken.AccessToken != c.credentials.AccessToken {

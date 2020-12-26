@@ -25,6 +25,18 @@ import (
 	"github.com/graphaelli/zat/zoom"
 )
 
+// mustWriter is an io.Writer that panics on Write error
+// for use where panics are recovered eg http handler
+type mustWriter struct {
+	w io.Writer
+}
+
+func (m mustWriter) Write(b []byte) {
+	if _, err := m.w.Write(b); err != nil {
+		panic(err)
+	}
+}
+
 func NewMux(zat *Config, params runParams) *http.ServeMux {
 	logger := zat.logger
 	googleClient := zat.googleClient
@@ -36,47 +48,47 @@ func NewMux(zat *Config, params runParams) *http.ServeMux {
 			http.NotFound(w, r)
 			return
 		}
-
+		mw := mustWriter{w: w}
 		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte("<meta http-equiv=\"refresh\" content=\"10\"/>"))
-		w.Write([]byte("<head><style>table, table th,table tr, table td{border-collapse: collapse;border:1px solid #000000;padding:3px}</style></head><body>"))
+		mw.Write([]byte("<meta http-equiv=\"refresh\" content=\"10\"/>"))
+		mw.Write([]byte("<head><style>table, table th,table tr, table td{border-collapse: collapse;border:1px solid #000000;padding:3px}</style></head><body>"))
 
-		w.Write([]byte("<br>Google: "))
+		mw.Write([]byte("<br>Google: "))
 		if !googleClient.HasCreds() {
-			w.Write([]byte("<a href=\"/google\">login</a>"))
+			mw.Write([]byte("<a href=\"/google\">login</a>"))
 			// googleClient.OauthRedirect(w, r)
 			//return
 		} else {
-			w.Write([]byte("<span style=\"color:green\">OK</span>"))
+			mw.Write([]byte("<span style=\"color:green\">OK</span>"))
 		}
 
-		w.Write([]byte("<br>Zoom: "))
+		mw.Write([]byte("<br>Zoom: "))
 		if !zoomClient.HasCreds() {
-			w.Write([]byte("<a href=\"/zoom\">login</a>"))
+			mw.Write([]byte("<a href=\"/zoom\">login</a>"))
 			//zoomClient.OauthRedirect(w, r)
 			//return
 		} else {
-			w.Write([]byte("<span style=\"color:green\">OK</span>"))
+			mw.Write([]byte("<span style=\"color:green\">OK</span>"))
 		}
 
 		if archIsRunning {
-			w.Write([]byte("<br/>Archiving...</a>"))
+			mw.Write([]byte("<br/>Archiving...</a>"))
 		} else if googleClient.HasCreds() && zoomClient.HasCreds() {
-			w.Write([]byte("<br/><a href=\"/archive\">Archive Now</a>"))
+			mw.Write([]byte("<br/><a href=\"/archive\">Archive Now</a>"))
 		} else {
-			w.Write([]byte("<br/>Login, to be able to archive"))
+			mw.Write([]byte("<br/>Login, to be able to archive"))
 		}
 
 		if len(archDetails) > 0 {
-			w.Write([]byte("<br/><br/><table><tr><th>Name</th><th>Date</th><th>Files</th><th>Status</th></th>"))
+			mw.Write([]byte("<br/><br/><table><tr><th>Name</th><th>Date</th><th>Files</th><th>Status</th></th>"))
 			for i := 0; i < len(archDetails); i++ {
 				arch := archDetails[i]
-				w.Write([]byte(fmt.Sprintf("<tr><td><a href=\"%s\">%s</a></td><td>%s</td><td>%d</td><td><a href=\"%s\">%s</a></td></tr>",
+				mw.Write([]byte(fmt.Sprintf("<tr><td><a href=\"%s\">%s</a></td><td>%s</td><td>%d</td><td><a href=\"%s\">%s</a></td></tr>",
 					arch.zoomUrl, arch.name, arch.date, arch.fileNumber, arch.googleDriveURL, arch.status)))
 			}
-			w.Write([]byte("</table>"))
+			mw.Write([]byte("</table>"))
 		}
-		w.Write([]byte("</body>"))
+		mw.Write([]byte("</body>"))
 	})
 
 	mux.HandleFunc("/archive", func(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +190,7 @@ func NewConfigFromReader(logger *log.Logger, r io.Reader, googleClient *google.C
 	if err := yaml.NewDecoder(r).Decode(&directives); err != nil {
 		return nil, err
 	}
-	c := make(map[int64]string, 0)
+	c := map[int64]string{}
 	for _, d := range directives {
 		key, err := strconv.ParseInt(strings.ReplaceAll(d.Zoom, "-", ""), 10, 64)
 		if err != nil {
@@ -485,15 +497,13 @@ func doRun(zat *Config, params runParams) {
 		return
 	}
 
-	if zat != nil {
-		if err := zat.Run(params); err != nil {
-			zat.logger.Println(err)
-		}
-
-		archIsRunningMu.Lock()
-		archIsRunning = false
-		archIsRunningMu.Unlock()
+	if err := zat.Run(params); err != nil {
+		zat.logger.Println(err)
 	}
+
+	archIsRunningMu.Lock()
+	archIsRunning = false
+	archIsRunningMu.Unlock()
 }
 
 func main() {
