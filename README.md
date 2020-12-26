@@ -19,21 +19,19 @@ go build .
 
 `zat` should start without any configuration but isn't very useful without credentials - see below for setup.
 
-`zat` will persist tokens to disk at `google.creds.json` and `zat.creds.json` - be sure to guard those files carefully as permissions are neceesarily wide.
+`zat` will persist tokens to disk at `google.creds.json` and `zat.creds.json` - be sure to guard those files carefully as permissions are necessarily wide.
 
-_note: zoom credentials do not automatically refresh yet, `zat` will require re-authorization after an hour.
-Until this is resolved, you will need to run an instance of the zat web server before each zat archival.
-
-Once tokens have been obtained, `zat -no-server` will perform only archival duties.
+Once tokens have been obtained, `zat -no-server` will perform only archival duties and then exit.
 
 `zat` always attempts to archive, to only start the web server use: `-since 0s`.
-
-Zoom does somethng funny when `-since` is > 30 days, there is a todo for that.
 
 ### Credentials
 
 * Obtain Google credentials
-  * [Create an Oauth Client ID credential](https://console.cloud.google.com/apis/credentials) _note: you may need to create a new project first_
+  * [Create an Oauth Client ID credential](https://console.cloud.google.com/apis/credentials)
+    * You may need to create a project, or use a dev project you have access to. If the project doesn't have OAuth consent screen info, you'll need to add that as well.
+      * Choose "internal" user type, give it a name similar to the project name, and add your contact email
+    * Choose "Web application" as the client ID type
     * Set Authorized redirect URIs to `http://localhost:8080/oauth/google`
   * Save credentials to `google.config.json` (GCP Console > API & Services > Credentials > Download JSON)
 
@@ -41,15 +39,20 @@ Zoom does somethng funny when `-since` is > 30 days, there is a todo for that.
   * [Create an Oauth Application](https://marketplace.zoom.us/develop/create)
     * User-managed
     * No need to publish
-    * Set redirect URI to `http://127.0.0.1.ip.es.io:8080/oauth/zoom`
-  * Saved credentials to `zoom.config.json` with content:
-```json
-{
-  "id":             "your-id",
-  "secret":         "your-secret",
-  "oauth_redirect": "http://127.0.0.1.ip.es.io:8080/oauth/zoom"
-}
-```
+    * Set name, descriptions, and contact information
+    * Add the `recording:read` scope 
+    * Set redirect URI to `http://127.0.0.1.ip.es.io:8080/oauth/zoom` and also add it to Whitelisted URLs
+    * 
+  * Save credentials to `zoom.config.json` with content:
+    ```json
+    {
+      "id":             "your-id",
+      "secret":         "your-secret",
+      "oauth_redirect": "http://127.0.0.1.ip.es.io:8080/oauth/zoom"
+    }
+    ```
+
+Once the credentials are in place, re-run `zat` and use the web server at http://localhost:8080/ to login to both Google and Zoom to create the `*.creds.json` files zat will use for the next run.
 
 ### Configuration
 
@@ -66,6 +69,8 @@ Create zat.yml like:
   zoom: 123-456-789
 ```
 
+Where `google` is the folder ID to store recordings into, and `zoom` is the meeting id (hyphens or no hyphens, not spaces).
+
 #### Google
 
 The google configuration is the ID of the folder where the recordings will be stored.
@@ -79,6 +84,8 @@ foo                                                          DpB3XhhzV87LfEeLrM-
 $ ./findfolders -query '"DpB3XhhzV87LfEeLrM-nCopTtHDWxqVGH" in parents and name = "Meetings"'
 Meetings                                                     ycMAKmDuzwobv6eBf9-PLupEGJJ6BtyoJ https://drive.google.com/drive/folders/ycMAKmDuzwobv6eBf9-PLupEGJJ6BtyoJ
 ```
+
+You'll likely get an "Access Not Configured" error for new projects. Follow the URL in the error to ensure the project is enabled for Google Drive API access, then wait a few minutes before retrying.
 
 zat provides a web interface with similar functionality, eg [http://localhost:8080/google?q=name contains "Team weekly"](http://localhost:8080/google?q=name%20contains%20%27Team%20weekly%27).
 
@@ -107,3 +114,26 @@ $ $ ./listrecordings -since 96h
 ```
 
 zat provides a web interface with similar functionality at [http://localhost:8080/zoom].
+
+#### Scheduling
+
+On macOS pre-10.15 (Catalina) and Linux, `cron` is sufficient, eg:
+
+```
+0 8,10,15,22 * * * zat -no-server -config-dir ~/path/to/zat/config/dir
+```
+
+On macOS 10.15+, new security restrictions make `cron` less attractive.
+
+Instead use `launchd`.
+A sample configuration is included under `contrib/`.
+Load it with:
+```
+launchctl load contrib/zat.plist
+```
+
+If prompted the first time the job runs, grant `zat` access to the config directory.
+
+## Also
+
+* Zoom doesn't look back farther than 30 days when `-since` is > 30 days. - [#16](https://github.com/graphaelli/zat/issues/16)

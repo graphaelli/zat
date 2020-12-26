@@ -157,6 +157,10 @@ func (c *Client) updateCreds(token *oauth2.Token) {
 }
 
 func (c *Client) HasCreds() bool {
+	if c.credentials == nil {
+		return false
+	}
+
 	valid := c.credentials.Valid()
 
 	if !valid {
@@ -164,7 +168,7 @@ func (c *Client) HasCreds() bool {
 		src := c.config.TokenSource(context.TODO(), c.credentials)
 		newToken, err := src.Token() // this actually goes and renews the tokens
 		if err != nil {
-			c.logger.Printf("error updating google token %w", err)
+			c.logger.Printf("error updating google token %s", err)
 			return false
 		}
 		if newToken.AccessToken != c.credentials.AccessToken {
@@ -184,7 +188,11 @@ func (c *Client) addBearerAuth(r *http.Request) {
 	r.Header.Set("Authorization", "Bearer "+c.credentials.AccessToken)
 }
 
-func (c *Client) NewApiRequest(method, uri string) (*http.Request, error) {
+func (c *Client) AccessToken() string {
+	return c.credentials.AccessToken
+}
+
+func (c *Client) NewApiRequest(ctx context.Context, method, uri string) (*http.Request, error) {
 	u := *c.apiBaseUrl
 	u.Path = path.Join(u.Path, uri)
 	req, err := http.NewRequest(method, u.String(), nil)
@@ -194,7 +202,7 @@ func (c *Client) NewApiRequest(method, uri string) (*http.Request, error) {
 	if c.HasCreds() {
 		c.addBearerAuth(req)
 	}
-	return req, nil
+	return req.WithContext(ctx), nil
 }
 
 func (c *Client) Do(req *http.Request, decodeTo interface{}) (*http.Response, error) {
@@ -249,9 +257,9 @@ func (c *Client) OauthHandler() func(w http.ResponseWriter, r *http.Request) {
 // TODO: accept ListRecordingsRequest
 // TODO: allow setting "to" to address > 30 day spans
 // https://marketplace.zoom.us/docs/api-reference/zoom-api/cloud-recording/recordingslist
-func (c *Client) ListRecordings(since time.Time, nextPageToken string) (*ListRecordingsResponse, error) {
+func (c *Client) ListRecordings(ctx context.Context, since time.Time, nextPageToken string) (*ListRecordingsResponse, error) {
 	var j ListRecordingsResponse
-	req, err := c.NewApiRequest(http.MethodGet, "v2/users/me/recordings")
+	req, err := c.NewApiRequest(ctx, http.MethodGet, "v2/users/me/recordings")
 	if err != nil {
 		return nil, fmt.Errorf("while building ListRecordings request: %w", err)
 	}

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>zat</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/zat</string>
+		<string>-no-server</string>
+		<string>-config-dir</string>
+		<string>/usr/local/etc/zat</string>
+	</array>
+	<key>StandardOutPath</key>
+	<string>/tmp/zat.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/zat.log</string>
+	<key>StartCalendarInterval</key>
+	<array>
+		<dict>
+			<key>Hour</key>
+			<integer>8</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>10</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>15</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>22</integer>
+		</dict>
+	</array>
+</dict>
+</plist>
