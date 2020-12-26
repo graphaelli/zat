@@ -57,7 +57,7 @@ func TestGoogleOauth(t *testing.T) {
 
 	zat := &Config{
 		logger:       muxLog,
-		copies:       make(map[int64]string, 0),
+		copies:       map[int64]string{},
 		googleClient: googleClient,
 		zoomClient:   nopZoomClient,
 	}
@@ -137,7 +137,7 @@ func TestZoomOauth(t *testing.T) {
 
 	zat := &Config{
 		logger:       muxLog,
-		copies:       make(map[int64]string, 0),
+		copies:       map[int64]string{},
 		googleClient: nopGoogleClient,
 		zoomClient:   zoomClient,
 	}
