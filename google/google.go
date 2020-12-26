@@ -91,6 +91,10 @@ func (c *Client) updateCreds(token *oauth2.Token) {
 }
 
 func (c *Client) HasCreds() bool {
+	if c.credentials == nil {
+		return false
+	}
+
 	valid := c.credentials.Valid()
 
 	if !valid {
