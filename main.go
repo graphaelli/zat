@@ -497,15 +497,13 @@ func doRun(zat *Config, params runParams) {
 		return
 	}
 
-	if zat != nil {
-		if err := zat.Run(params); err != nil {
-			zat.logger.Println(err)
-		}
-
-		archIsRunningMu.Lock()
-		archIsRunning = false
-		archIsRunningMu.Unlock()
+	if err := zat.Run(params); err != nil {
+		zat.logger.Println(err)
 	}
+
+	archIsRunningMu.Lock()
+	archIsRunning = false
+	archIsRunningMu.Unlock()
 }
 
 func main() {
