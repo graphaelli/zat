@@ -18,6 +18,8 @@ import (
 	googlemock "github.com/graphaelli/zat/google/mock"
 	"github.com/graphaelli/zat/zoom"
 	zoommock "github.com/graphaelli/zat/zoom/mock"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -303,4 +305,10 @@ func TestRecordingFileName(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConfigFromFile(t *testing.T) {
+	c, err := NewConfigFromFile(nil, "does-not-exist", nopGoogleClient, nopZoomClient)
+	require.NoError(t, err)
+	assert.NotNil(t, c)
 }
