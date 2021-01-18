@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -178,16 +179,26 @@ type Config struct {
 
 func NewConfigFromFile(logger *log.Logger, path string, googleClient *google.Client, zoomClient *zoom.Client) (*Config, error) {
 	f, err := os.Open(path)
-	if err != nil {
+
+	if err != nil && os.IsExist(err) {
 		return nil, err
 	}
-	defer f.Close()
-	return NewConfigFromReader(logger, f, googleClient, zoomClient)
+
+	var r io.Reader = f
+
+	// Use an empty io.Reader when the files doesn't exist on disk.
+	if f == nil {
+		r = bytes.NewReader(nil)
+	} else {
+		defer f.Close()
+	}
+
+	return NewConfigFromReader(logger, r, googleClient, zoomClient)
 }
 
 func NewConfigFromReader(logger *log.Logger, r io.Reader, googleClient *google.Client, zoomClient *zoom.Client) (*Config, error) {
 	var directives []Directive
-	if err := yaml.NewDecoder(r).Decode(&directives); err != nil {
+	if err := yaml.NewDecoder(r).Decode(&directives); err != nil && err != io.EOF {
 		return nil, err
 	}
 	c := map[int64]string{}
