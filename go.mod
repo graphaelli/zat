@@ -1,6 +1,6 @@
 module github.com/graphaelli/zat
 
-go 1.12
+go 1.15
 
 require (
 	go.elastic.co/apm v1.8.0
