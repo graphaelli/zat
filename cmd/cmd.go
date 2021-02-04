@@ -13,6 +13,8 @@ const (
 	// zoom OAuth persistence - oauth2.Token{}, read/write
 	GoogleCredsPath = "google.creds.json"
 	// zoom API credentials - zoom.Config{}, read only ok
+	// optional slack API credentials, read only ok
+	SlackConfigPath = "slack.config.json"
 	ZoomConfigPath = "zoom.config.json"
 	// zoom OAuth persistence - oauth2.Token{}, read/write
 	ZoomCredsPath = "zoom.creds.json"
