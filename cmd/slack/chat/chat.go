@@ -30,7 +30,7 @@ func main() {
 	}
 
 	logger := log.New(os.Stderr, "", cmd.LogFmt)
-	api, err := slack.NewClientFromEnvOrFile(logger, path.Join(*cfgDir, cmd.SlackConfigPath), slackapi.OptionDebug(true))
+	api, _ := slack.NewClientFromEnvOrFile(logger, path.Join(*cfgDir, cmd.SlackConfigPath), slackapi.OptionDebug(true))
 	if api == nil {
 		logger.Fatal("failed to create slack api client")
 	}
