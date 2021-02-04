@@ -308,7 +308,7 @@ func TestRecordingFileName(t *testing.T) {
 }
 
 func TestConfigFromFile(t *testing.T) {
-	c, err := NewConfigFromFile(nil, "does-not-exist", nopGoogleClient, nopZoomClient)
+	c, err := NewConfigFromFile(nil, "does-not-exist", nopGoogleClient, nopZoomClient, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, c)
 }

@@ -53,7 +53,7 @@ func NewClientFromEnvOrFile(logger *log.Logger, path string, options ...slackapi
 		return client, nil
 	}
 	if !os.IsNotExist(err) {
-		logger.Println("failed to load slack configuration: %s, continuing", err)
+		logger.Printf("failed to load slack configuration: %s, continuing", err)
 	}
 	return nil, nil
 
