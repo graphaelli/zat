@@ -445,7 +445,7 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 	if uploaded && action.Slack != "" && z.slackClient != nil {
 		slackSpan, ctx := apm.StartSpan(ctx, "slack", "app")
 		body := fmt.Sprintf("%s recording now available: https://drive.google.com/drive/folders/%s", meeting.Topic, meetingFolder.Id)
-		channel, _, text, err := z.slackClient.SendMessage(action.Slack, slackapi.MsgOptionText(body, true))
+		channel, _, text, err := z.slackClient.SendMessageContext(ctx, action.Slack, slackapi.MsgOptionText(body, true))
 		if err != nil {
 			z.logger.Printf("failed to notify slack %q: %s", action.Slack, err)
 			apm.CaptureError(ctx, err).Send()
