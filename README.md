@@ -128,7 +128,7 @@ zat provides a web interface with similar functionality at http://localhost:8080
 
 The slack configuration is the ID of the channel where the message should be sent.
 
-`cmd/zoom/listchannels` can assist in tracking down channel IDs like:
+`cmd/slack/listchannels` can assist in tracking down channel IDs like:
 
 ```
 $ go build ./cmd/slack/listchannels
