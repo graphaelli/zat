@@ -5,6 +5,7 @@ zat
 zat.yml
 google.config.json
 google.creds.json
+slack.config.json
 zoom.config.json
 zoom.creds.json
 .idea/

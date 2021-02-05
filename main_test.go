@@ -59,7 +59,7 @@ func TestGoogleOauth(t *testing.T) {
 
 	zat := &Config{
 		logger:       muxLog,
-		copies:       map[int64]string{},
+		copies:       map[int64]Directive{},
 		googleClient: googleClient,
 		zoomClient:   nopZoomClient,
 	}
@@ -139,7 +139,7 @@ func TestZoomOauth(t *testing.T) {
 
 	zat := &Config{
 		logger:       muxLog,
-		copies:       map[int64]string{},
+		copies:       map[int64]Directive{},
 		googleClient: nopGoogleClient,
 		zoomClient:   zoomClient,
 	}
@@ -308,7 +308,7 @@ func TestRecordingFileName(t *testing.T) {
 }
 
 func TestConfigFromFile(t *testing.T) {
-	c, err := NewConfigFromFile(nil, "does-not-exist", nopGoogleClient, nopZoomClient)
+	c, err := NewConfigFromFile(nil, "does-not-exist", nopGoogleClient, nopZoomClient, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, c)
 }

@@ -51,6 +51,15 @@ Once tokens have been obtained, `zat -no-server` will perform only archival duti
       "oauth_redirect": "http://127.0.0.1.ip.es.io:8080/oauth/zoom"
     }
     ```
+* [Optional] Obtain Slack credentials
+  * [Create an App](https://api.slack.com/apps?new_app=1)
+    * Add Permissions > Scopes > Bot Token Scopes > Add An Oauth Scope granting: `channels:read`, `chat:write`, `chat:write.public`
+  * Save the Bot User OAuth Access Token to `slack.config.json` with content:
+    ```json
+    {
+      "token":             "your-token"
+    }
+    ```
 
 Once the credentials are in place, re-run `zat` and use the web server at http://localhost:8080/ to login to both Google and Zoom to create the `*.creds.json` files zat will use for the next run.
 
@@ -97,7 +106,7 @@ The zoom configuration is the meeting ID - the dashes are optional.
 
 ```
 $ go build ./cmd/zoom/listrecordings
-$ $ ./listrecordings -since 96h
+$ ./listrecordings -since 96h
 2019/11/25 12:22:54 listrecordings.go:41: 2 recordings found
 2019-11-21 945106202 UI Weekly
 	audio_transcript https://zoom.us/recording/download/wwww
@@ -114,6 +123,21 @@ $ $ ./listrecordings -since 96h
 ```
 
 zat provides a web interface with similar functionality at http://localhost:8080/zoom.
+
+#### Slack
+
+The slack configuration is the ID of the channel where the message should be sent.
+
+`cmd/slack/listchannels` can assist in tracking down channel IDs like:
+
+```
+$ go build ./cmd/slack/listchannels
+$ ./listchannels
+0: {GroupConversation:{Conversation:{ID:CAAAAAAAA Created:"Sat Mar 10" IsOpen:false LastRead: Latest:<nil> UnreadCount:0 UnreadCountDisplay:0 IsGroup:false IsShared:false IsIM:false IsExtShared:false IsOrgShared:false IsPendingExtShared:false IsPrivate:false IsMpIM:false Unlinked:0 NameNormalized:zat NumMembers:1 Priority:0 User:} Name:zat Creator:U99999999 IsArchived:false Members:[] Topic:{Value: Creator: LastSet:"Wed Dec 31"} Purpose:{Value:Zat Discussion Creator:U99999999 LastSet:"Sat Mar 10"}} IsChannel:true IsGeneral:false IsMember:false Locale:}
+1: {GroupConversation:{Conversation:{ID:CAAAAAAAA Created:"Sat Mar 10" IsOpen:false LastRead: Latest:<nil> UnreadCount:0 UnreadCountDisplay:0 IsGroup:false IsShared:false IsIM:false IsExtShared:false IsOrgShared:false IsPendingExtShared:false IsPrivate:false IsMpIM:false Unlinked:0 NameNormalized:welcome NumMembers:1 Priority:0 User:} Name:welcome Creator:U99999999 IsArchived:false Members:[] Topic:{Value: Creator:U99999999 LastSet:"Sat Mar 10"} Purpose:{Value:This channel is for workspace-wide communication and announcements. All members are in this channel. Creator:U99999999 LastSet:"Sat Mar 10"}} IsChannel:true IsGeneral:true IsMember:false Locale:}
+```
+
+`cmd/slack/chat` can assist in verifying permissions are correct.
 
 #### Scheduling
 

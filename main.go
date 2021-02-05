@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	slackapi "github.com/slack-go/slack"
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
 	"google.golang.org/api/drive/v3"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/graphaelli/zat/cmd"
 	"github.com/graphaelli/zat/google"
+	"github.com/graphaelli/zat/slack"
 	"github.com/graphaelli/zat/zoom"
 )
 
@@ -167,17 +169,23 @@ type Directive struct {
 	Name   string `json:"name"`
 	Google string `json:"google"`
 	Zoom   string `json:"zoom"`
+	Slack  string `json:"slack"`
 }
+
+// use invalid json to avoid conflict
+var skipDirective = Directive{Name: "{skip"}
 
 // zoom meeting -> action
 type Config struct {
 	logger       *log.Logger
-	copies       map[int64]string // for now
+	copies       map[int64]Directive
 	googleClient *google.Client
+	slackClient  *slackapi.Client
 	zoomClient   *zoom.Client
 }
 
-func NewConfigFromFile(logger *log.Logger, path string, googleClient *google.Client, zoomClient *zoom.Client) (*Config, error) {
+func NewConfigFromFile(logger *log.Logger, path string, googleClient *google.Client, zoomClient *zoom.Client,
+	slackClient *slackapi.Client) (*Config, error) {
 	f, err := os.Open(path)
 
 	if err != nil && os.IsExist(err) {
@@ -193,15 +201,16 @@ func NewConfigFromFile(logger *log.Logger, path string, googleClient *google.Cli
 		defer f.Close()
 	}
 
-	return NewConfigFromReader(logger, r, googleClient, zoomClient)
+	return NewConfigFromReader(logger, r, googleClient, zoomClient, slackClient)
 }
 
-func NewConfigFromReader(logger *log.Logger, r io.Reader, googleClient *google.Client, zoomClient *zoom.Client) (*Config, error) {
+func NewConfigFromReader(logger *log.Logger, r io.Reader, googleClient *google.Client, zoomClient *zoom.Client,
+	slackClient *slackapi.Client) (*Config, error) {
 	var directives []Directive
 	if err := yaml.NewDecoder(r).Decode(&directives); err != nil && err != io.EOF {
 		return nil, err
 	}
-	c := map[int64]string{}
+	c := map[int64]Directive{}
 	for _, d := range directives {
 		key, err := strconv.ParseInt(strings.ReplaceAll(d.Zoom, "-", ""), 10, 64)
 		if err != nil {
@@ -209,15 +218,16 @@ func NewConfigFromReader(logger *log.Logger, r io.Reader, googleClient *google.C
 		}
 		if _, exists := c[key]; exists {
 			logger.Printf("config for %d already exists, disabling any action", key)
-			c[key] = "skip"
+			c[key] = skipDirective
 			continue
 		}
-		c[key] = d.Google
+		c[key] = d
 	}
 	return &Config{
 		logger:       logger,
 		copies:       c,
 		googleClient: googleClient,
+		slackClient:  slackClient,
 		zoomClient:   zoomClient,
 	}, nil
 }
@@ -302,8 +312,13 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 	if err != nil {
 		return fmt.Errorf("while creating gdrive client: %w", err)
 	}
+	action := z.copies[meeting.ID]
+	if action == skipDirective {
+		curArchMeeting.status = "error"
+		return fmt.Errorf("skipped mapping meeting %d %q", meeting.ID, meeting.Topic)
+	}
 	// parent folder of all meetings
-	parentFolderName := z.copies[meeting.ID]
+	parentFolderName := action.Google
 	if parentFolderName == "" {
 		curArchMeeting.status = "error"
 		return fmt.Errorf("no mapping found for meeting %d %q", meeting.ID, meeting.Topic)
@@ -360,8 +375,8 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 	// download & upload serially for now
 	z.logger.Printf("archiving meeting %d to %s (https://drive.google.com/drive/folders/%s)",
 		meeting.ID, meetingFolder.Name, meetingFolder.Id)
+	uploaded := false
 	for _, f := range meeting.RecordingFiles {
-
 		//check if recording file duration is shorter than minimum
 		start, err := time.Parse(time.RFC3339, f.RecordingStart)
 		if err != nil {
@@ -425,6 +440,19 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 		}
 		curArchMeeting.fileNumber++
 		z.logger.Printf("uploaded %q to %s/%s", name, parent.Name, meetingFolder.Name)
+		uploaded = true
+	}
+	if uploaded && action.Slack != "" && z.slackClient != nil {
+		slackSpan, ctx := apm.StartSpan(ctx, "slack", "app")
+		body := fmt.Sprintf("%s recording now available: https://drive.google.com/drive/folders/%s", meeting.Topic, meetingFolder.Id)
+		channel, _, text, err := z.slackClient.SendMessageContext(ctx, action.Slack, slackapi.MsgOptionText(body, true))
+		if err != nil {
+			z.logger.Printf("failed to notify slack %q: %s", action.Slack, err)
+			apm.CaptureError(ctx, err).Send()
+		} else {
+			z.logger.Printf("notified slack %q: %s", channel, text)
+		}
+		slackSpan.End()
 	}
 	curArchMeeting.status = "done"
 	return nil
@@ -547,13 +575,13 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-
+	slackClient, _ := slack.NewClientFromEnvOrFile(logger, *cfgDir, slackapi.OptionHTTPClient(http.DefaultClient))
 	rp := runParams{
 		minDuration: *minDuration,
 		since:       *since,
 	}
 
-	zat, err := NewConfigFromFile(logger, path.Join(*cfgDir, cmd.ZatConfigPath), googleClient, zoomClient)
+	zat, err := NewConfigFromFile(logger, path.Join(*cfgDir, cmd.ZatConfigPath), googleClient, zoomClient, slackClient)
 	if err != nil {
 		// ok to continue without config, just can't do archival
 		logger.Println("failed to load config", err)
