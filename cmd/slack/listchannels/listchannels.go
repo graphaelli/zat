@@ -23,11 +23,21 @@ func main() {
 		logger.Fatal("failed to create slack api client")
 	}
 
-	channels, _, err := api.GetConversations(&slackapi.GetConversationsParameters{})
-	if err != nil {
-		panic(err)
-	}
-	for i, channel := range channels {
-		fmt.Printf("%d: %+v\n", i, channel)
+	next := ""
+	for i := 0; i == 0 || next != ""; i++ {
+		channels, nextCursor, err := api.GetConversations(
+			&slackapi.GetConversationsParameters{
+				Cursor:          next,
+				ExcludeArchived: "true",
+				Limit: 100,
+			},
+		)
+		if err != nil {
+			panic(err)
+		}
+		for _, channel := range channels {
+			fmt.Printf("%s %s\n", channel.ID, channel.NameNormalized)
+		}
+		next = nextCursor
 	}
 }
