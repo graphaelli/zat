@@ -54,7 +54,7 @@ Once tokens have been obtained, `zat -no-server` will perform only archival duti
 * [Optional] Obtain Slack credentials
   * [Create an App](https://api.slack.com/apps?new_app=1)
     * Add Permissions > Scopes > Bot Token Scopes > Add An Oauth Scope granting: `channels:read`, `chat:write`, `chat:write.public`
-  * Save the Bot User OAuth Access Token to `slack.config.json` with content:
+  * Save the Bot User OAuth Access Token (under OAuth & Permissions) to `slack.config.json` with content:
     ```json
     {
       "token":             "your-token"
