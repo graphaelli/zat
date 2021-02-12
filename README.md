@@ -137,7 +137,7 @@ CAAAAAAAA general
 CAAAAAAAB zat
 
 One method for finding private channel IDs is to open Slack in a web browser and look at `$$('.p-channel_sidebar__static_list__item')` elements.
-The application's bot user will need to be in the private channel to post messages there.
+The application's bot user will need to be invited to the private channel to post messages there.
 ```
 
 `cmd/slack/chat` can assist in verifying permissions are correct.
