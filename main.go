@@ -575,7 +575,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	slackClient, _ := slack.NewClientFromEnvOrFile(logger, *cfgDir, slackapi.OptionHTTPClient(http.DefaultClient))
+	slackClient, _ := slack.NewClientFromEnvOrFile(logger, path.Join(*cfgDir, cmd.SlackConfigPath), slackapi.OptionHTTPClient(http.DefaultClient))
 	rp := runParams{
 		minDuration: *minDuration,
 		since:       *since,

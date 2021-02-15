@@ -54,7 +54,7 @@ Once tokens have been obtained, `zat -no-server` will perform only archival duti
 * [Optional] Obtain Slack credentials
   * [Create an App](https://api.slack.com/apps?new_app=1)
     * Add Permissions > Scopes > Bot Token Scopes > Add An Oauth Scope granting: `channels:read`, `chat:write`, `chat:write.public`
-  * Save the Bot User OAuth Access Token to `slack.config.json` with content:
+  * Save the Bot User OAuth Access Token (under OAuth & Permissions) to `slack.config.json` with content:
     ```json
     {
       "token":             "your-token"
@@ -133,8 +133,11 @@ The slack configuration is the ID of the channel where the message should be sen
 ```
 $ go build ./cmd/slack/listchannels
 $ ./listchannels
-0: {GroupConversation:{Conversation:{ID:CAAAAAAAA Created:"Sat Mar 10" IsOpen:false LastRead: Latest:<nil> UnreadCount:0 UnreadCountDisplay:0 IsGroup:false IsShared:false IsIM:false IsExtShared:false IsOrgShared:false IsPendingExtShared:false IsPrivate:false IsMpIM:false Unlinked:0 NameNormalized:zat NumMembers:1 Priority:0 User:} Name:zat Creator:U99999999 IsArchived:false Members:[] Topic:{Value: Creator: LastSet:"Wed Dec 31"} Purpose:{Value:Zat Discussion Creator:U99999999 LastSet:"Sat Mar 10"}} IsChannel:true IsGeneral:false IsMember:false Locale:}
-1: {GroupConversation:{Conversation:{ID:CAAAAAAAA Created:"Sat Mar 10" IsOpen:false LastRead: Latest:<nil> UnreadCount:0 UnreadCountDisplay:0 IsGroup:false IsShared:false IsIM:false IsExtShared:false IsOrgShared:false IsPendingExtShared:false IsPrivate:false IsMpIM:false Unlinked:0 NameNormalized:welcome NumMembers:1 Priority:0 User:} Name:welcome Creator:U99999999 IsArchived:false Members:[] Topic:{Value: Creator:U99999999 LastSet:"Sat Mar 10"} Purpose:{Value:This channel is for workspace-wide communication and announcements. All members are in this channel. Creator:U99999999 LastSet:"Sat Mar 10"}} IsChannel:true IsGeneral:true IsMember:false Locale:}
+CAAAAAAAA general
+CAAAAAAAB zat
+
+One method for finding private channel IDs is to open Slack in a web browser and look at `$$('.p-channel_sidebar__static_list__item')` elements.
+The application's bot user will need to be invited to the private channel to post messages there.
 ```
 
 `cmd/slack/chat` can assist in verifying permissions are correct.
