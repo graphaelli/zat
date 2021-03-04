@@ -377,7 +377,7 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 		meeting.ID, meetingFolder.Name, meetingFolder.Id)
 	notifyUpload := false
 
-	exclude := func(string) bool { return true }
+	exclude := func(string) bool { return false }
 	if params.uploadFilter != "" {
 		allowedFileTypes := map[string]bool{}
 		for _, uf := range strings.Split(params.uploadFilter, ",") {
