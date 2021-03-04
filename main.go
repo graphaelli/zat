@@ -376,6 +376,18 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 	z.logger.Printf("archiving meeting %d to %s (https://drive.google.com/drive/folders/%s)",
 		meeting.ID, meetingFolder.Name, meetingFolder.Id)
 	uploaded := false
+
+	exclude := func(string) bool { return true }
+	if params.uploadFilter != "" {
+		allowedFileTypes := map[string]bool{}
+		for _, uf := range strings.Split(params.uploadFilter, ",") {
+			allowedFileTypes[strings.ToLower(strings.TrimSpace(uf))] = true
+		}
+		exclude = func(fileType string) bool {
+			return !allowedFileTypes[strings.ToLower(fileType)]
+		}
+	}
+
 	for _, f := range meeting.RecordingFiles {
 		//check if recording file duration is shorter than minimum
 		start, err := time.Parse(time.RFC3339, f.RecordingStart)
@@ -398,6 +410,12 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 		}
 
 		name := recordingFileName(meeting, f)
+
+		if exclude(f.FileType) {
+			z.logger.Printf("skipping upload %s, file type %q excluded", name, strings.ToLower(f.FileType))
+			continue
+		}
+
 		if _, exists := alreadyUploaded[name]; exists {
 			curArchMeeting.status = "done"
 			curArchMeeting.fileNumber++
@@ -459,8 +477,9 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 }
 
 type runParams struct {
-	minDuration int
-	since       time.Duration
+	minDuration  int
+	since        time.Duration
+	uploadFilter string
 }
 
 func (z *Config) Run(params runParams) error {
@@ -551,6 +570,9 @@ func main() {
 	noServer := flag.Bool("no-server", false, "don't start web server")
 	minDuration := flag.Int("min-duration", 5, "minimum meeting duration in minutes to archive")
 	since := flag.Duration("since", 168*time.Hour, "since")
+	uploadFilter := flag.String("t", "",
+		"comma separated list of file types to archive (mp4, m4a, timeline, transcript, chat, cc, csv), see: "+
+			"https://marketplace.zoom.us/docs/api-reference/zoom-api/cloud-recording/recordingget")
 	flag.Parse()
 
 	logger := log.New(os.Stderr, "", cmd.LogFmt)
@@ -577,8 +599,9 @@ func main() {
 	}
 	slackClient, _ := slack.NewClientFromEnvOrFile(logger, path.Join(*cfgDir, cmd.SlackConfigPath), slackapi.OptionHTTPClient(http.DefaultClient))
 	rp := runParams{
-		minDuration: *minDuration,
-		since:       *since,
+		minDuration:  *minDuration,
+		since:        *since,
+		uploadFilter: *uploadFilter,
 	}
 
 	zat, err := NewConfigFromFile(logger, path.Join(*cfgDir, cmd.ZatConfigPath), googleClient, zoomClient, slackClient)
