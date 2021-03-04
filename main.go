@@ -375,7 +375,7 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 	// download & upload serially for now
 	z.logger.Printf("archiving meeting %d to %s (https://drive.google.com/drive/folders/%s)",
 		meeting.ID, meetingFolder.Name, meetingFolder.Id)
-	uploaded := false
+	notifyUpload := false
 
 	exclude := func(string) bool { return true }
 	if params.uploadFilter != "" {
@@ -458,9 +458,11 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 		}
 		curArchMeeting.fileNumber++
 		z.logger.Printf("uploaded %q to %s/%s", name, parent.Name, meetingFolder.Name)
-		uploaded = true
+		if strings.ToLower(f.FileType) == "mp4" {
+			notifyUpload = true
+		}
 	}
-	if uploaded && action.Slack != "" && z.slackClient != nil {
+	if notifyUpload && action.Slack != "" && z.slackClient != nil {
 		slackSpan, ctx := apm.StartSpan(ctx, "slack", "app")
 		body := fmt.Sprintf("%s recording now available: https://drive.google.com/drive/folders/%s", meeting.Topic, meetingFolder.Id)
 		channel, _, text, err := z.slackClient.SendMessageContext(ctx, action.Slack, slackapi.MsgOptionText(body, true))
