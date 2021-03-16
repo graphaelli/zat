@@ -164,3 +164,4 @@ If prompted the first time the job runs, grant `zat` access to the config direct
 ## Also
 
 * Zoom doesn't look back farther than 30 days when `-since` is > 30 days. - [#16](https://github.com/graphaelli/zat/issues/16)
+* [#34](https://github.com/graphaelli/zat/issues/34) introduced the `-t` option to limit the file types archived by zat.  You might consider running `zat` with `-t mp4,chat` as the rest of the files aren't that interesting.
