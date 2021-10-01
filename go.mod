@@ -1,6 +1,6 @@
 module github.com/graphaelli/zat
 
-go 1.12
+go 1.16
 
 require (
 	github.com/slack-go/slack v0.8.0
