@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -16,15 +17,19 @@ import (
 	"sync"
 	"time"
 
+	esv7 "github.com/elastic/go-elasticsearch/v7"
 	slackapi "github.com/slack-go/slack"
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmelasticsearch"
 	"go.elastic.co/apm/module/apmhttp"
+	"golang.org/x/oauth2"
+	goog "golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
+	"google.golang.org/api/option"
 	"gopkg.in/yaml.v2"
 
 	"github.com/graphaelli/zat/cmd"
 	"github.com/graphaelli/zat/google"
-	"github.com/graphaelli/zat/slack"
 	"github.com/graphaelli/zat/zoom"
 )
 
@@ -568,77 +573,142 @@ func doRun(zat *Config, params runParams) {
 
 func main() {
 	cfgDir := cmd.FlagConfigDir()
-	addr := flag.String("addr", "localhost:8080", "web server listener address")
-	noServer := flag.Bool("no-server", false, "don't start web server")
-	minDuration := flag.Int("min-duration", 5, "minimum meeting duration in minutes to archive")
-	since := flag.Duration("since", 168*time.Hour, "since")
-	uploadFilter := flag.String("t", "",
-		"comma separated list of file types to archive (mp4, m4a, timeline, transcript, chat, cc, csv), see: "+
-			"https://marketplace.zoom.us/docs/api-reference/zoom-api/cloud-recording/recordingget")
+	//minDuration := flag.Int("min-duration", 5, "minimum meeting duration in minutes to archive")
+	//since := flag.Duration("since", 168*time.Hour, "since")
+	//uploadFilter := flag.String("t", "",
+	//	"comma separated list of file types to archive (mp4, m4a, timeline, transcript, chat, cc, csv), see: "+
+	//		"https://marketplace.zoom.us/docs/api-reference/zoom-api/cloud-recording/recordingget")
 	flag.Parse()
 
 	logger := log.New(os.Stderr, "", cmd.LogFmt)
-
+	logger.Print("starting")
 	// Instrument http.DefaultClient and http.DefaultTransport.
 	http.DefaultClient = apmhttp.WrapClient(http.DefaultClient)
 	http.DefaultTransport = apmhttp.WrapRoundTripper(http.DefaultTransport)
 
-	googleClient, err := google.NewClientFromFile(
-		logger,
-		path.Join(*cfgDir, cmd.GoogleConfigPath),
-		google.NewCredentialsManager(path.Join(*cfgDir, cmd.GoogleCredsPath)).ClientOption,
-	)
+	// load google config (not user creds) shared by all
+	fg, err := os.Open(path.Join(*cfgDir, cmd.GoogleConfigPath))
 	if err != nil {
-		logger.Fatal(err)
+		log.Fatal("while reading google config", err)
 	}
-	zoomClient, err := zoom.NewClientFromFile(
-		logger,
-		path.Join(*cfgDir, cmd.ZoomConfigPath),
-		zoom.NewCredentialsManager(path.Join(*cfgDir, cmd.ZoomCredsPath)).ClientOption,
-	)
+	bg, err := ioutil.ReadAll(fg)
+	fg.Close()
 	if err != nil {
-		logger.Fatal(err)
+		log.Fatal("while reading google config", err)
 	}
-	slackClient, _ := slack.NewClientFromEnvOrFile(logger, path.Join(*cfgDir, cmd.SlackConfigPath), slackapi.OptionHTTPClient(http.DefaultClient))
-	rp := runParams{
-		minDuration:  *minDuration,
-		since:        *since,
-		uploadFilter: *uploadFilter,
+	googleOauthConfig, err := goog.ConfigFromJSON(bg, drive.DriveScope)
+	if err != nil {
+		log.Fatal("while reading google config", err)
 	}
 
-	zat, err := NewConfigFromFile(logger, path.Join(*cfgDir, cmd.ZatConfigPath), googleClient, zoomClient, slackClient)
+	// load zoom config (not user creds) shared by all
+	fz, err := os.Open(path.Join(*cfgDir, cmd.ZoomConfigPath))
 	if err != nil {
-		// ok to continue without config, just can't do archival
-		logger.Println("failed to load config", err)
+		log.Fatal("while reading zoom config", err)
+	}
+	var zc struct {
+		ID          string `json:"id"`
+		Secret      string `json:"secret"`
+		RedirectURL string `json:"oauth_redirect"`
+	}
+	if err := json.NewDecoder(fz).Decode(&zc); err != nil {
+		log.Fatal("while reading zoom config", err)
+	}
+	zoomOauthConfig := &oauth2.Config{
+		ClientID:     zc.ID,
+		ClientSecret: zc.Secret,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://zoom.us/oauth/authorize",
+			TokenURL: "https://zoom.us/oauth/token",
+		},
+		RedirectURL: zc.RedirectURL,
 	}
 
-	var wg sync.WaitGroup
-	if !*noServer {
-		wg.Add(1)
-		server := http.Server{
-			Addr:    *addr,
-			Handler: apmhttp.Wrap(NewMux(zat, rp)),
-		}
-		go func() {
-			logger.Printf("starting on http://%s", server.Addr)
-			if err := server.ListenAndServe(); err != nil {
-				logger.Fatal(err)
+	// single slack client shared by all
+	//slackClient, _ := slack.NewClientFromEnvOrFile(logger, path.Join(*cfgDir, cmd.SlackConfigPath), slackapi.OptionHTTPClient(http.DefaultClient))
+
+	// fetch job configs from es
+	es, err := esv7.NewClient(esv7.Config{
+		Username:  "admin",
+		Password:  "changeme",
+		Transport: apmelasticsearch.WrapRoundTripper(http.DefaultTransport),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	res, err := es.Search(
+		es.Search.WithContext(context.TODO()),
+		es.Search.WithIndex("creds"),
+		es.Search.WithBody(strings.NewReader(`{"query":{"match_all":{}}}`)),
+		es.Search.WithTrackTotalHits(true),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var users struct {
+		Hits struct {
+			Total struct {
+				Value int `json:"value"`
+			} `json:"total"`
+			Hits []struct {
+				Source struct {
+					UserId string `json:"user_id"`
+					Gdrive struct {
+						RefreshToken string `json:"refresh_token"`
+					} `json:"gdrive"`
+					Zoom struct {
+						RefreshToken string `json:"refresh_token"`
+					} `json:"zoom"`
+				} `json:"_source"`
 			}
-			wg.Done()
-		}()
+		}
+	}
+	if err := json.NewDecoder(res.Body).Decode(&users); err != nil {
+		log.Fatal(err)
 	}
 
-	if zat != nil {
-		// already logged that config is loaded, just skip the run
-		wg.Add(1)
-		go func() {
-			doRun(zat, rp)
-			wg.Done()
-		}()
+	for i := 0; i < users.Hits.Total.Value; i++ {
+		ctx := context.TODO()
+		user := users.Hits.Hits[i].Source
+		googleToken := &oauth2.Token{
+			TokenType:    "Bearer",
+			RefreshToken: user.Gdrive.RefreshToken,
+		}
+		googleClient := googleOauthConfig.Client(ctx, googleToken)
+		srv, err := drive.NewService(ctx, option.WithHTTPClient(googleClient))
+		if err != nil {
+			log.Fatalf("Unable to retrieve Drive client: %v", err)
+		}
+
+		r, err := srv.Files.List().PageSize(10).
+			Fields("nextPageToken, files(id, name)").Do()
+		if err != nil {
+			log.Fatalf("Unable to retrieve files: %v", err)
+		}
+		fmt.Println("Files:")
+		if len(r.Files) == 0 {
+			fmt.Println("No files found.")
+		} else {
+			for _, i := range r.Files {
+				fmt.Printf("%s (%s)\n", i.Name, i.Id)
+			}
+		}
+
+		// doesn't work because refresh tokens one time use only - https://devforum.zoom.us/t/same-problem-happened-getting-invalid-grant-error-when-trying-to-refresh-token/67675
+		zoomToken := &oauth2.Token{
+			TokenType:    "Bearer",
+			RefreshToken: user.Zoom.RefreshToken,
+		}
+		zoomClient := zoomOauthConfig.Client(ctx, zoomToken)
+		rsp, err := zoomClient.Get("https://api.zoom.us/v2/users/me/recordings")
+		if err != nil {
+			log.Fatal(err)
+		}
+		io.Copy(os.Stderr, rsp.Body)
+
 	}
-
-	wg.Wait()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	apm.DefaultTracer.Flush(ctx.Done())
