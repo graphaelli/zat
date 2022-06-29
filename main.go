@@ -23,6 +23,7 @@ import (
 	"go.elastic.co/apm/module/apmelasticsearch"
 	"go.elastic.co/apm/module/apmhttp"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/endpoints"
 	goog "golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
@@ -617,11 +618,8 @@ func main() {
 	zoomOauthConfig := &oauth2.Config{
 		ClientID:     zc.ID,
 		ClientSecret: zc.Secret,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://zoom.us/oauth/authorize",
-			TokenURL: "https://zoom.us/oauth/token",
-		},
-		RedirectURL: zc.RedirectURL,
+		Endpoint:     endpoints.Zoom,
+		RedirectURL:  zc.RedirectURL,
 	}
 
 	// single slack client shared by all
