@@ -10,6 +10,8 @@ Copies Zoom recordings to Google Drive.
 
 ## How
 
+ ! if you prefer to run a dockerized version of zat, follow the detailed instructions [here](docs/complete_configuration_guide.md) !
+
 `zat` requires `go` to build - 1.13+ is recommended, for proper error formatting, but will work with older versions.
 
 ```
