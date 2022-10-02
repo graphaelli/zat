@@ -2,12 +2,12 @@ Zat detailed configuration guide
 ---
 
 
-# Pre-requisites
+## Pre-requisites
 
 We'll be using the Terminal app to run commands.
 You can already launch it by hitting the `command+space` keys then searching for `terminal`.
 
-## Install Docker and configure it
+### Install Docker and configure it
 
 1. Download and install [Docker Desktop](https://docs.docker.com/desktop/install/mac-install/) for Mac.
 You'll get a warning saying that Docker Desktop needs privileged access - you will need to enter your computer password when prompted.
@@ -17,7 +17,7 @@ You'll see a "Docker Subscription Service Agreement" screen - accept it.
 Open the Docker app, and follow the steps to create an account.
 
 
-## Log into Elastic container registry
+### Log into Elastic container registry
 
 We're now going to log into Elastic container registry, where we'll download zat.
 Visit [https://docker-auth.elastic.co](https://docker-auth.elastic.co) - click on the `Login to @elastic with GitHub` button.
@@ -29,9 +29,9 @@ You may get redirect to an Okta log-in screen, but eventually will see a page as
 Copy the full line, after the `$` sign and paste it into the Terminal window and press enter.
 You should see a `Login Succeeded` message.
 
-# Configuring Zat
+## Configuring Zat
 
-## Create a configuration folder
+### Create a configuration folder
 
 We're first going to create a local folder to hold all the configuration files.
 Make sure to not share its content as it holds sensitive information.
@@ -46,7 +46,7 @@ open .
 The last command will prompt the `.zaconfig` folder we just created to open in Finder.
 
 
-## Creating Google credentials
+### Creating Google credentials
 
 
 1. Select or create a new Google Project
@@ -80,7 +80,7 @@ Download as `google.config.json` and move it to the zatconfig folder we created 
 ![Google OAuth Client Created](img/google_oauth_client_created.png)
 
 
-## Creating Zoom credentials
+### Creating Zoom credentials
 
 
 1. Visit the[ Zoom Marketplace](https://marketplace.zoom.us/develop/create)
@@ -138,7 +138,7 @@ Click the "Copy" button next to the "Client ID" and paste it in the `your-id` fi
 Click the "Copy" button next to the Client Secret field and paste it in the `your-secret` field of the zoom config file.
 Save the file and close it.
 
-## Authenticate to Google and Zoom using Zat
+### Authenticate to Google and Zoom using Zat
 
 1. In your terminal, type the below command
 ```
@@ -160,7 +160,7 @@ Click the `Allow` button
 
 5. Go back to the terminal and hit the `control` and `c` keys to stop the program.
 
-## Configure the meetings to move
+### Configure the meetings to move
 
 In your terminal, type the below commands:
 ```
@@ -194,7 +194,7 @@ Add as many of the below blocks, for every meeting you have recordings to move.
 ```
 
 
-## Run zat once to see if it picks up recordings
+### Run zat once to see if it picks up recordings
 
 In your terminal, run the below command:
 
@@ -204,10 +204,10 @@ docker run --rm -v "$HOME/.zatconfig:/app" docker.elastic.co/employees/nkammah/z
 
 
 
-# Configure Zat to run automatically for you
+## Configure Zat to run automatically for you
 
 
-## Write a configuration file
+### Write a configuration file
 
 In your terminal, type the below commands:
 ```
@@ -315,7 +315,7 @@ The month on which this job will be run.
 ```
 
 
-## Load the configuration file
+### Load the configuration file
 
 In your terminal, type the below command:
 
@@ -331,7 +331,7 @@ tail /tmp/zat.log
 ```
 
 
-## Modifying the zat schedule
+### Modifying the zat schedule
 
 When you want to modify the schedule for zat, you'll need to:
 
