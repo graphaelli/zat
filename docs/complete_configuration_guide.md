@@ -1,6 +1,8 @@
 Zat detailed configuration guide
 ---
 
+Zat automatically copies your Zoom recordings to the Google Drive folder of your choices - you no longer need to download and copy file over, Zat will do it for you!
+In this detailed guide, you'll get to install and configure Zat - it seems like a lot of steps, but you'll only need to do it once!
 
 ## Pre-requisites
 
