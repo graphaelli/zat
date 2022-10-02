@@ -5,11 +5,7 @@ Zat detailed configuration guide
 # Pre-requisites
 
 We'll be using the Terminal app to run commands.
-You can launch it by hitting the `command+space` keys then searching for `terminal`.
-
-
-## Request a GitHub account if you don't have one
-
+You can already launch it by hitting the `command+space` keys then searching for `terminal`.
 
 ## Install Docker and configure it
 
@@ -18,16 +14,20 @@ You'll get a warning saying that Docker Desktop needs privileged access - you wi
 You'll see a "Docker Subscription Service Agreement" screen - accept it.
 
 2. Start Docker and create an account
+Open the Docker app, and follow the steps to create an account.
 
-3. Visit [https://docker-auth.elastic.co](https://docker-auth.elastic.co) to
 
 ## Log into Elastic container registry
 
+We're now going to log into Elastic container registry, where we'll download zat.
+Visit [https://docker-auth.elastic.co](https://docker-auth.elastic.co) - click on the `Login to @elastic with GitHub` button.
+You may get redirect to an Okta log-in screen, but eventually will see a page as below:
+
+![Container Registry Login](img/container_registry_loging.png)
 
 
-
-
-
+Copy the full line, after the `$` sign and paste it into the Terminal window and press enter.
+You should see a `Login Succeeded` message.
 
 # Configuring Zat
 
