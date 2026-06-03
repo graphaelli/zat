@@ -575,6 +575,9 @@ func main() {
 	uploadFilter := flag.String("t", "",
 		"comma separated list of file types to archive (mp4, m4a, timeline, transcript, chat, cc, csv), see: "+
 			"https://marketplace.zoom.us/docs/api-reference/zoom-api/cloud-recording/recordingget")
+	googleADC := flag.Bool("google-adc", false,
+		"authenticate to Google with Application Default Credentials instead of "+
+			cmd.GoogleConfigPath+"/"+cmd.GoogleCredsPath)
 	flag.Parse()
 
 	logger := log.New(os.Stderr, "", cmd.LogFmt)
@@ -583,11 +586,17 @@ func main() {
 	http.DefaultClient = apmhttp.WrapClient(http.DefaultClient)
 	http.DefaultTransport = apmhttp.WrapRoundTripper(http.DefaultTransport)
 
-	googleClient, err := google.NewClientFromFile(
-		logger,
-		path.Join(*cfgDir, cmd.GoogleConfigPath),
-		google.NewCredentialsManager(path.Join(*cfgDir, cmd.GoogleCredsPath)).ClientOption,
-	)
+	var err error
+	var googleClient *google.Client
+	if *googleADC {
+		googleClient, err = google.NewClientFromADC(context.Background(), logger)
+	} else {
+		googleClient, err = google.NewClientFromFile(
+			logger,
+			path.Join(*cfgDir, cmd.GoogleConfigPath),
+			google.NewCredentialsManager(path.Join(*cfgDir, cmd.GoogleCredsPath)).ClientOption,
+		)
+	}
 	if err != nil {
 		logger.Fatal(err)
 	}

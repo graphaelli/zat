@@ -28,6 +28,27 @@ Once tokens have been obtained, `zat -no-server` will perform only archival duti
 ### Credentials
 
 * Obtain Google credentials
+
+  There are two options: the interactive OAuth flow (default), or Application Default Credentials.
+
+  **Option A: Application Default Credentials (ADC)**
+
+  Run `zat -google-adc` to authenticate with [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials)
+  instead of `google.config.json`/`google.creds.json`. There is no interactive login flow and no creds files to manage.
+  Credentials are discovered, in order, from:
+    1. the `GOOGLE_APPLICATION_CREDENTIALS` environment variable (path to a service account key)
+    2. the gcloud-managed user credentials file
+    3. the GCP metadata server (when running on GCE, Cloud Run, etc.)
+
+  For local user credentials, grant the Drive scope when logging in:
+  ```
+  gcloud auth application-default login --scopes=https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/cloud-platform
+  ```
+
+  Note: a service account can only access Drive folders shared with it (or its own Drive) unless domain-wide delegation is configured.
+
+  **Option B: interactive OAuth (default)**
+
   * [Create an Oauth Client ID credential](https://console.cloud.google.com/apis/credentials)
     * You may need to create a project, or use a dev project you have access to. If the project doesn't have OAuth consent screen info, you'll need to add that as well.
       * Choose "internal" user type, give it a name similar to the project name, and add your contact email
@@ -61,7 +82,7 @@ Once tokens have been obtained, `zat -no-server` will perform only archival duti
     }
     ```
 
-Once the credentials are in place, re-run `zat` and use the web server at http://localhost:8080/ to login to both Google and Zoom to create the `*.creds.json` files zat will use for the next run.
+Once the credentials are in place, re-run `zat` and use the web server at http://localhost:8080/ to login to both Google and Zoom to create the `*.creds.json` files zat will use for the next run. (When using `-google-adc`, the Google web login is skipped — only Zoom needs the interactive flow.)
 
 ### Configuration
 
