@@ -198,7 +198,7 @@ func NewConfigFromFile(logger *log.Logger, path string, googleClient *google.Cli
 	if f == nil {
 		r = bytes.NewReader(nil)
 	} else {
-		defer f.Close()
+		defer f.Close() //nolint:errcheck
 	}
 
 	return NewConfigFromReader(logger, r, googleClient, zoomClient, slackClient)
@@ -436,7 +436,7 @@ func (z *Config) Archive(ctx context.Context, meeting zoom.Meeting, params runPa
 			curArchMeeting.status = "error"
 			return fmt.Errorf("while downloading recording %s: %w", f.DownloadURL, err)
 		}
-		defer r.Body.Close()
+		defer r.Body.Close() //nolint:errcheck
 
 		if r.StatusCode != http.StatusOK {
 			curArchMeeting.status = "error"

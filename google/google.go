@@ -51,7 +51,7 @@ func NewClientFromFile(logger *log.Logger, path string, options ...ClientOption)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 	return NewClientFromReader(logger, f, options...)
 }
 
