@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -61,7 +60,7 @@ func main() {
 		logger.Fatal(err)
 	}
 	logger.Printf("created folder %s - https://drive.google.com/drive/folders/%s", dir.Name, dir.Id)
-	files, err := ioutil.ReadDir(src)
+	files, err := os.ReadDir(src)
 	if err != nil {
 		logger.Fatal(err)
 	}
