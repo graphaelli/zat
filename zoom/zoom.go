@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -213,7 +212,7 @@ func (c *Client) Do(req *http.Request, decodeTo interface{}) (*http.Response, er
 	defer rsp.Body.Close() //nolint:errcheck
 	if rsp.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("API call to %s failed: %d", req.URL.String(), rsp.StatusCode)
-		if body, err := ioutil.ReadAll(rsp.Body); err == nil {
+		if body, err := io.ReadAll(rsp.Body); err == nil {
 			msg += ": " + string(body)
 		}
 		c.logger.Print(msg)

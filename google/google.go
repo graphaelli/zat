@@ -3,7 +3,6 @@ package google
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -56,7 +55,7 @@ func NewClientFromFile(logger *log.Logger, path string, options ...ClientOption)
 }
 
 func NewClientFromReader(logger *log.Logger, r io.Reader, options ...ClientOption) (*Client, error) {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
