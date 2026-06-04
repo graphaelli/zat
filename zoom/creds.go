@@ -20,7 +20,7 @@ func (cm *credentialsManager) loadCreds(c *Client) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 	var token oauth2.Token
 	if err := json.NewDecoder(f).Decode(&token); err != nil {
 		return err
@@ -34,7 +34,7 @@ func (cm *credentialsManager) saveCreds(c *Client) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 	return json.NewEncoder(f).Encode(c.credentials)
 }
 

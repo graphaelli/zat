@@ -93,7 +93,7 @@ func NewClientFromFile(logger *log.Logger, path string, options ...ClientOption)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 	return NewClientFromReader(logger, f, options...)
 }
 
@@ -210,7 +210,7 @@ func (c *Client) Do(req *http.Request, decodeTo interface{}) (*http.Response, er
 	if err != nil {
 		return nil, fmt.Errorf("while creating http client in Do: %w", err)
 	}
-	defer rsp.Body.Close()
+	defer rsp.Body.Close() //nolint:errcheck
 	if rsp.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("API call to %s failed: %d", req.URL.String(), rsp.StatusCode)
 		if body, err := ioutil.ReadAll(rsp.Body); err == nil {
