@@ -21,9 +21,13 @@ type Client struct {
 	logger     *log.Logger
 	httpClient *http.Client
 
+	// cloud creds
 	config      *oauth2.Config
 	credentials *oauth2.Token
 	cm          *credentialsManager
+
+	// ADC
+	tokenSource oauth2.TokenSource
 }
 
 type ClientOption func(*Client)
@@ -67,6 +71,29 @@ func NewClientFromReader(logger *log.Logger, r io.Reader, options ...ClientOptio
 	return NewClient(logger, config, options...)
 }
 
+// NewClientFromADC builds a Client that authenticates with Application Default
+// Credentials. Credentials are discovered from the GOOGLE_APPLICATION_CREDENTIALS
+// environment variable, the gcloud-managed ADC file, or the GCP metadata server.
+// No google.config.json / google.creds.json files are needed and the interactive
+// OAuth flow is skipped.
+func NewClientFromADC(ctx context.Context, logger *log.Logger, options ...ClientOption) (*Client, error) {
+	creds, err := google.FindDefaultCredentials(ctx, drive.DriveScope)
+	if err != nil {
+		return nil, err
+	}
+	c := &Client{
+		logger:      logger,
+		httpClient:  http.DefaultClient,
+		tokenSource: creds.TokenSource,
+	}
+
+	for _, o := range options {
+		o(c)
+	}
+	return c, nil
+}
+
+// NewClient builds a Client that authenticates with Google Cloud Credentials
 func NewClient(logger *log.Logger, config *oauth2.Config, options ...ClientOption) (*Client, error) {
 	c := &Client{
 		logger:     logger,
@@ -90,6 +117,16 @@ func (c *Client) updateCreds(token *oauth2.Token) {
 }
 
 func (c *Client) HasCreds() bool {
+	if c.tokenSource != nil {
+		// ADC: the token source handles fetching/refreshing. A successful
+		// Token() call confirms credentials are available and valid.
+		if _, err := c.tokenSource.Token(); err != nil {
+			c.logger.Printf("error getting ADC google token %s", err)
+			return false
+		}
+		return true
+	}
+
 	if c.credentials == nil {
 		return false
 	}
@@ -114,6 +151,11 @@ func (c *Client) HasCreds() bool {
 }
 
 func (c *Client) OauthRedirect(w http.ResponseWriter, r *http.Request) {
+	if c.tokenSource != nil {
+		// ADC mode has no interactive OAuth flow.
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
 	c.logger.Println(c.config.RedirectURL)
 	http.Redirect(w, r, c.config.RedirectURL, http.StatusFound)
 }
@@ -121,6 +163,11 @@ func (c *Client) OauthRedirect(w http.ResponseWriter, r *http.Request) {
 // TODO: use / validate state token
 func (c *Client) OauthHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if c.tokenSource != nil {
+			// ADC mode has no interactive OAuth flow.
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
 		if r.FormValue("refresh") != "" || !c.credentials.Valid() {
 			c.updateCreds(nil)
 		}
@@ -147,6 +194,9 @@ func (c *Client) OauthHandler() func(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Client) Service(ctx context.Context) (*drive.Service, error) {
+	if c.tokenSource != nil {
+		return drive.NewService(ctx, option.WithTokenSource(c.tokenSource))
+	}
 	return drive.NewService(ctx, option.WithTokenSource(c.config.TokenSource(ctx, c.credentials)))
 }
 

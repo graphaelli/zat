@@ -15,14 +15,23 @@ import (
 func main() {
 	andQuery := flag.String("query", "", "google drive query: https://developers.google.com/drive/api/v3/search-files")
 	cfgDir := cmd.FlagConfigDir()
+	googleADC := flag.Bool("google-adc", false,
+		"authenticate to Google with Application Default Credentials instead of "+
+			cmd.GoogleConfigPath+"/"+cmd.GoogleCredsPath)
 	flag.Parse()
 
 	logger := log.New(os.Stderr, "", cmd.LogFmt)
-	googleClient, err := google.NewClientFromFile(
-		logger,
-		path.Join(*cfgDir, cmd.GoogleConfigPath),
-		google.NewCredentialsManager(cmd.GoogleCredsPath).ClientOption,
-	)
+	var googleClient *google.Client
+	var err error
+	if *googleADC {
+		googleClient, err = google.NewClientFromADC(context.TODO(), logger)
+	} else {
+		googleClient, err = google.NewClientFromFile(
+			logger,
+			path.Join(*cfgDir, cmd.GoogleConfigPath),
+			google.NewCredentialsManager(cmd.GoogleCredsPath).ClientOption,
+		)
+	}
 	if err != nil {
 		logger.Fatal(err)
 	}
